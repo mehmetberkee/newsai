@@ -1,12 +1,14 @@
 import React from "react";
-
+import Link from "next/link";
 const Navbar = () => {
   return (
     <nav className="flex items-center justify-between gap-8 px-4 py-2 bg-white border-b border-gray-200">
       <div className="flex items-center space-x-2">
-        <div className="w-8 h-8 flex items-center justify-center font-bold">
-          <img alt="logo" src="/logo.svg" />
-        </div>
+        <Link href={"/"}>
+          <div className="w-8 h-8 flex items-center justify-center font-bold">
+            <img alt="logo" src="/logo.svg" />
+          </div>
+        </Link>
       </div>
       <input
         type="text"
