@@ -2,78 +2,140 @@ import axios from "axios";
 import { JSDOM } from "jsdom";
 import { Readability } from "@mozilla/readability";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import OpenAI from "openai";
+
+// OpenAI istemcisini başlat
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Özet oluşturma fonksiyonu
+async function generateDetailedAnalysis(title: string, content: string) {
+  try {
+    const prompt = `Title: ${title}\n\nContent: ${content}\n\nPlease provide a comprehensive analysis of this news article in a professional journalistic style. Write a flowing narrative that thoroughly examines the story, its context, and implications. Focus on creating a cohesive, detailed report that reads like a well-written news analysis piece. Include relevant background information, key developments, and potential impacts, all woven together in clear, engaging paragraphs.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 500,
+      temperature: 0.7,
+    });
+
+    return response.choices[0].message.content?.trim();
+  } catch (error) {
+    console.error("Error generating analysis:", error);
+    return null;
+  }
+}
+
+async function fetchAndProcessNews(
+  query: string,
+  fromDate: string,
+  toDate: string
+) {
+  const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+    query
+  )}&from=${fromDate}&to=${toDate}&sortBy=popularity&pageSize=5&apiKey=${
+    process.env.NEWSAPI_KEY
+  }`;
+
+  const newsResponse = await axios.get(url);
+  const articles = newsResponse.data.articles;
+
+  return Promise.all(
+    articles.map(async (article: any) => {
+      try {
+        const articleResponse = await axios.get(article.url, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
+            Accept:
+              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+          },
+          maxRedirects: 5,
+        });
+
+        let fullContent = "";
+        const contentType = articleResponse.headers["content-type"];
+
+        if (contentType && contentType.includes("text/html")) {
+          const dom = new JSDOM(articleResponse.data, { url: article.url });
+          const reader = new Readability(dom.window.document);
+          const parsedArticle = reader.parse();
+          fullContent = parsedArticle ? parsedArticle.textContent : "";
+        }
+
+        // Özet oluştur
+        const analysis = await generateDetailedAnalysis(
+          article.title,
+          fullContent || article.content || article.description
+        );
+
+        return {
+          title: article.title,
+          description: article.description,
+          content: article.content,
+          fullContent,
+          analysis,
+          url: article.url,
+          imageUrl: article.urlToImage,
+          publishedAt: new Date(article.publishedAt),
+          source: article.source.name,
+          category: query,
+        };
+      } catch (error) {
+        console.error(`Error processing article: ${article.url}`, error);
+        return null;
+      }
+    })
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get("query") || "florida hurricane helene";
-    const fromDate = searchParams.get("fromDate") || "2024-09-29";
+    const query = searchParams.get("query") || "trending";
 
-    // Bugünün tarihini YYYY-MM-DD formatında al
-    const today = new Date().toISOString().split("T")[0];
-    const toDate = searchParams.get("toDate") || today;
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const fromDate = yesterday.toISOString().split("T")[0];
+    const toDate = now.toISOString().split("T")[0];
 
-    // Build the NewsAPI URL
-    const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-      query
-    )}&from=${fromDate}&to=${toDate}&sortBy=popularity&apiKey=${
-      process.env.NEWSAPI_KEY
-    }`;
+    const cachedNews = await prisma.news.findMany({
+      where: {
+        category: query,
+        publishedAt: {
+          gte: yesterday,
+          lte: now,
+        },
+      },
+      orderBy: {
+        publishedAt: "desc",
+      },
+    });
 
-    // Fetch articles from NewsAPI
-    const newsResponse = await axios.get(url);
-    const articles = newsResponse.data.articles;
+    if (cachedNews.length > 5) {
+      return NextResponse.json({ articles: cachedNews.slice(0, 5) });
+    }
 
-    // Initialize an array to hold full article content
-    const fullArticles: Array<any> = [];
+    const articles = await fetchAndProcessNews(query, fromDate, toDate);
+    const validArticles = articles.filter((article) => article !== null);
 
-    // Fetch and parse each article
-    await Promise.all(
-      articles.map(async (article: any) => {
-        try {
-          // Fetch the article's HTML content with headers
-          const articleResponse = await axios.get(article.url, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
-              Accept:
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-              "Accept-Language": "en-US,en;q=0.5",
-            },
-            maxRedirects: 5,
-          });
-
-          const contentType = articleResponse.headers["content-type"];
-          if (contentType && contentType.includes("text/html")) {
-            // Parse the HTML content
-            const dom = new JSDOM(articleResponse.data, { url: article.url });
-            const reader = new Readability(dom.window.document);
-            const parsedArticle = reader.parse();
-
-            // Add the full content to the article object
-            fullArticles.push({
-              ...article,
-              fullContent: parsedArticle ? parsedArticle.textContent : "",
-            });
-          } else {
-            console.error(`Skipped non-HTML content at ${article.url}`);
-            // Optionally add the article without fullContent
-            fullArticles.push(article);
-          }
-        } catch (error) {
-          console.error(
-            `Error fetching article at ${article.url}:`,
-            (error as Error).message
-          );
-          // Optionally add the article without fullContent
-          fullArticles.push(article);
-        }
-      })
+    await prisma.$transaction(
+      validArticles.map((article: any) =>
+        prisma.news.upsert({
+          where: { url: article.url },
+          update: article,
+          create: article,
+        })
+      )
     );
 
-    return NextResponse.json({ articles: fullArticles }, { status: 200 });
+    return NextResponse.json({ articles: validArticles });
   } catch (error) {
-    console.error("Error fetching articles:", (error as Error).message);
+    console.error("Error in news API:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
