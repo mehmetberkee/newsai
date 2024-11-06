@@ -2,6 +2,7 @@ import axios from "axios";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import * as cheerio from "cheerio";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -11,7 +12,7 @@ const openai = new OpenAI({
 async function fetchAndProcessNews() {
   try {
     // 1. BBC'den başlıkları al
-    const bbcUrl = `https://newsapi.org/v2/top-headlines?sources=bbc-news&apiKey=${process.env.NEWSAPI_KEY}`;
+    const bbcUrl = `https://newsapi.org/v2/top-headlines?sources=bbc-news&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
     const bbcResponse = await axios.get(bbcUrl);
     const bbcArticles = bbcResponse.data.articles;
 
@@ -45,12 +46,19 @@ async function fetchAndProcessNews() {
             publishedAt: new Date(bbcArticle.publishedAt),
             source: bbcArticle.source.name,
           },
-          relatedArticles: relatedArticles.map((article: any) => ({
-            title: article.title,
-            source: article.source.name,
-            url: article.url,
-            publishedAt: new Date(article.publishedAt),
-          })),
+          relatedArticles: await Promise.all(
+            relatedArticles.map(async (article: any) => {
+              const fullContent = await scrapeArticleContent(article.url);
+              return {
+                title: article.title,
+                source: article.source.name,
+                url: article.url,
+                publishedAt: new Date(article.publishedAt),
+                content: fullContent || article.content,
+                description: article.description,
+              };
+            })
+          ),
           analysis,
         };
       })
@@ -132,6 +140,26 @@ Please write in a professional journalistic style that balances accessibility wi
   }
 }
 
+async function scrapeArticleContent(url: string) {
+  try {
+    const response = await axios.get(url);
+    const $ = cheerio.load(response.data);
+
+    // Her site için farklı HTML yapısı olacağından,
+    // genellikle makale içeriği bulunan elementleri seçiyoruz
+    const content = $('article, [class*="article"], [class*="content"]')
+      .find("p")
+      .map((_, el) => $(el).text())
+      .get()
+      .join("\n");
+
+    return content;
+  } catch (error) {
+    console.error(`Error scraping content from ${url}:`, error);
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const now = new Date();
@@ -154,6 +182,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (cachedNews.length > 0) {
+      console.log("cached:");
       return NextResponse.json({ articles: cachedNews });
     }
 
@@ -168,18 +197,43 @@ export async function GET(request: NextRequest) {
             url: article.mainArticle.url,
           },
           update: {
-            ...article.mainArticle,
+            title: article.mainArticle.title,
+            description: article.mainArticle.description,
+            content: article.mainArticle.content,
+            imageUrl: article.mainArticle.imageUrl,
+            publishedAt: article.mainArticle.publishedAt,
+            source: article.mainArticle.source,
             analysis: article.analysis,
             relatedArticles: {
-              deleteMany: {}, // Remove existing related articles
-              create: article.relatedArticles,
+              deleteMany: {},
+              create: article.relatedArticles.map((related: any) => ({
+                title: related.title,
+                source: related.source,
+                url: related.url,
+                publishedAt: related.publishedAt,
+                content: related.content,
+                description: related.description,
+              })),
             },
           },
           create: {
-            ...article.mainArticle,
+            title: article.mainArticle.title,
+            description: article.mainArticle.description,
+            content: article.mainArticle.content,
+            url: article.mainArticle.url,
+            imageUrl: article.mainArticle.imageUrl,
+            publishedAt: article.mainArticle.publishedAt,
+            source: article.mainArticle.source,
             analysis: article.analysis,
             relatedArticles: {
-              create: article.relatedArticles,
+              create: article.relatedArticles.map((related: any) => ({
+                title: related.title,
+                source: related.source,
+                url: related.url,
+                publishedAt: related.publishedAt,
+                content: related.content,
+                description: related.description,
+              })),
             },
           },
           include: {

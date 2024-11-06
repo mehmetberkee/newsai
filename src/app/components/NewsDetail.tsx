@@ -2,6 +2,8 @@
 import React from "react";
 import Image from "next/image";
 import { useNews } from "@/hooks/useNews";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface NewsDetailProps {
   title: string;
@@ -41,7 +43,11 @@ function NewsDetail({ title }: NewsDetailProps) {
             {newsItem.category}
           </span>
           <p className="text-gray-700 text-lg">{newsItem.description}</p>
-          <p>{newsItem.analysis}</p>
+          <div className="prose prose-lg max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {newsItem.analysis}
+            </ReactMarkdown>
+          </div>
           <p className="text-gray-500">{newsItem.source}</p>
 
           <div className="flex items-center gap-4 mt-8">

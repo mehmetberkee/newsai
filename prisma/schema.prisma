@@ -14,18 +14,18 @@ datasource db {
 }
 
 model News {
-  id            String           @id @default(cuid())
-  title         String
-  description   String?
-  content       String?
-  url           String          @unique
-  imageUrl      String?
-  publishedAt   DateTime
-  source        String
-  analysis      String?         @db.Text
+  id              String    @id @default(cuid())
+  title           String
+  description     String?   @db.Text
+  content         String?   @db.Text
+  url             String    @unique
+  imageUrl        String?
+  publishedAt     DateTime
+  source          String
+  analysis        String?   @db.Text
   relatedArticles RelatedArticle[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   
   // Yeni ilişkiler
   savedBy       UserSavedNews[]
@@ -33,15 +33,17 @@ model News {
 }
 
 model RelatedArticle {
-  id        String   @id @default(cuid())
-  title     String
-  source    String
-  url       String   @unique
+  id          String   @id @default(cuid())
+  title       String
+  source      String
+  url         String   @unique
   publishedAt DateTime
-  newsId    String
-  news      News     @relation(fields: [newsId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  content     String?  @db.Text
+  description String?  @db.Text
+  news        News     @relation(fields: [newsId], references: [id])
+  newsId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model User {
