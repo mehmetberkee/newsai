@@ -133,7 +133,37 @@ Please write in a professional journalistic style that balances accessibility wi
     });
     console.log("response:");
     console.log(response.choices[0].message.content);
-    return response.choices[0].message.content?.trim();
+
+    // Sentiment analizi için ikinci bir request yap
+    const sentimentPrompt = `
+    Based on the following comprehensive news analysis, provide a sentiment breakdown in percentages (positive, neutral, negative).
+    Return ONLY a JSON object with these three values, ensuring they sum to 100.
+
+    Analysis:
+    ${response.choices[0].message.content}
+
+    Example expected format:
+    {
+      "positive": 30,
+      "neutral": 45,
+      "negative": 25
+    }`;
+
+    const sentimentResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: sentimentPrompt }],
+      response_format: { type: "json_object" },
+      max_tokens: 100,
+      temperature: 0.3,
+    });
+
+    const sentimentAnalysis =
+      sentimentResponse.choices[0].message.content || {};
+
+    return {
+      analysis: response.choices[0].message.content?.trim(),
+      sentiment: sentimentAnalysis,
+    };
   } catch (error) {
     console.error("Error generating analysis:", error);
     return null;
@@ -162,20 +192,12 @@ async function scrapeArticleContent(url: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    // Önbellekten kontrol et
+    // Son 7 güne çıkaralım ve tarih filtresini kaldıralım
     const cachedNews = await prisma.news.findMany({
-      where: {
-        publishedAt: {
-          gte: yesterday,
-          lte: now,
-        },
-      },
       orderBy: {
         publishedAt: "desc",
       },
+      take: 5, // Son 5 haberi al
       include: {
         relatedArticles: true,
       },
@@ -183,6 +205,7 @@ export async function GET(request: NextRequest) {
 
     if (cachedNews.length > 0) {
       console.log("cached:");
+      console.log(cachedNews);
       return NextResponse.json({ articles: cachedNews });
     }
 
@@ -203,7 +226,8 @@ export async function GET(request: NextRequest) {
             imageUrl: article.mainArticle.imageUrl,
             publishedAt: article.mainArticle.publishedAt,
             source: article.mainArticle.source,
-            analysis: article.analysis,
+            analysis: article.analysis.analysis,
+            sentiment: article.analysis.sentiment,
             relatedArticles: {
               deleteMany: {},
               create: article.relatedArticles.map((related: any) => ({
@@ -224,7 +248,8 @@ export async function GET(request: NextRequest) {
             imageUrl: article.mainArticle.imageUrl,
             publishedAt: article.mainArticle.publishedAt,
             source: article.mainArticle.source,
-            analysis: article.analysis,
+            analysis: article.analysis.analysis,
+            sentiment: article.analysis.sentiment,
             relatedArticles: {
               create: article.relatedArticles.map((related: any) => ({
                 title: related.title,

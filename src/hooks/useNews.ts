@@ -7,6 +7,7 @@ interface NewsItem {
   source: string;
   analysis: string;
   imageUrl: string;
+  sentiment: any;
   url: string;
   publishedAt: string;
 }

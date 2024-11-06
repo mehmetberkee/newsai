@@ -116,31 +116,51 @@ function NewsDetail({ title }: NewsDetailProps) {
               </svg>
               <h2 className="text-xl font-semibold">Sentiment</h2>
             </div>
-            <p className="text-gray-500 text-sm mb-4">Based on 42 articles</p>
+            <p className="text-gray-500 text-sm mb-4">
+              AI-powered sentiment analysis
+            </p>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <img src="/positiveIcon.svg" alt="positive" />
                 <span className="w-20">Positive</span>
                 <div className="flex-1 bg-gray-200 rounded-full h-1">
-                  <div className="bg-[#02542D] h-1 rounded-full w-[80%]"></div>
+                  <div
+                    className="bg-[#02542D] h-1 rounded-full"
+                    style={{ width: `${newsItem.sentiment?.positive || 0}%` }}
+                  ></div>
                 </div>
+                <span className="w-12 text-sm text-gray-600">
+                  {newsItem.sentiment?.positive || 0}%
+                </span>
               </div>
 
               <div className="flex items-center gap-3">
                 <img src="/neutralIcon.svg" alt="neutral" />
                 <span className="w-20">Neutral</span>
                 <div className="flex-1 bg-gray-200 rounded-full h-1">
-                  <div className="bg-[#CEC8D4] h-1 rounded-full w-[40%]"></div>
+                  <div
+                    className="bg-[#CEC8D4] h-1 rounded-full"
+                    style={{ width: `${newsItem.sentiment?.neutral || 0}%` }}
+                  ></div>
                 </div>
+                <span className="w-12 text-sm text-gray-600">
+                  {newsItem.sentiment?.neutral || 0}%
+                </span>
               </div>
 
               <div className="flex items-center gap-3">
-                <img src="/negativeIcon.svg" alt="neutral" />
+                <img src="/negativeIcon.svg" alt="negative" />
                 <span className="w-20">Negative</span>
                 <div className="flex-1 bg-gray-200 rounded-full h-1">
-                  <div className="bg-[#852221] h-1 rounded-full w-[15%]"></div>
+                  <div
+                    className="bg-[#852221] h-1 rounded-full"
+                    style={{ width: `${newsItem.sentiment?.negative || 0}%` }}
+                  ></div>
                 </div>
+                <span className="w-12 text-sm text-gray-600">
+                  {newsItem.sentiment?.negative || 0}%
+                </span>
               </div>
             </div>
           </div>

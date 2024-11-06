@@ -23,6 +23,7 @@ model News {
   publishedAt     DateTime
   source          String
   analysis        String?   @db.Text
+  sentiment       Json?
   relatedArticles RelatedArticle[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
