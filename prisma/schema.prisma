@@ -14,29 +14,34 @@ datasource db {
 }
 
 model News {
-  id          String   @id @default(cuid())
-  title       String   @unique
-  description String?  @db.Text
-  content     String?  @db.Text
-  fullContent String?  @db.Text
-  analysis    String?  @db.Text
-  url         String   @unique
-  imageUrl    String?
-  publishedAt DateTime
-  source      String
-  category    String
-  sentiment   Float?   
-  viewCount   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String           @id @default(cuid())
+  title         String
+  description   String?
+  content       String?
+  url           String          @unique
+  imageUrl      String?
+  publishedAt   DateTime
+  source        String
+  analysis      String?         @db.Text
+  relatedArticles RelatedArticle[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   
-  // İlişkiler
-  savedBy     UserSavedNews[]
-  comments    Comment[]
+  // Yeni ilişkiler
+  savedBy       UserSavedNews[]
+  comments      Comment[]
+}
 
-  @@index([category])
-  @@index([publishedAt])
-  @@index([title])
+model RelatedArticle {
+  id        String   @id @default(cuid())
+  title     String
+  source    String
+  url       String   @unique
+  publishedAt DateTime
+  newsId    String
+  news      News     @relation(fields: [newsId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model User {

@@ -1,27 +1,130 @@
 import axios from "axios";
-import { JSDOM } from "jsdom";
-import { Readability } from "@mozilla/readability";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 
-// OpenAI istemcisini başlat
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Özet oluşturma fonksiyonu
-async function generateDetailedAnalysis(title: string, content: string) {
+// BBC'den başlıkları al ve diğer kaynaklardan ilgili haberleri getir
+async function fetchAndProcessNews() {
   try {
-    const prompt = `Title: ${title}\n\nContent: ${content}\n\nPlease provide a comprehensive analysis of this news article in a professional journalistic style. Write a flowing narrative that thoroughly examines the story, its context, and implications. Focus on creating a cohesive, detailed report that reads like a well-written news analysis piece. Include relevant background information, key developments, and potential impacts, all woven together in clear, engaging paragraphs.`;
+    // 1. BBC'den başlıkları al
+    const bbcUrl = `https://newsapi.org/v2/top-headlines?sources=bbc-news&apiKey=${process.env.NEWSAPI_KEY}`;
+    const bbcResponse = await axios.get(bbcUrl);
+    const bbcArticles = bbcResponse.data.articles;
+
+    // 2. Her BBC haberi için diğer kaynakları tara
+    const enrichedArticles = await Promise.all(
+      bbcArticles.map(async (bbcArticle: any) => {
+        // BBC başlığındaki anahtar kelimeleri kullanarak diğer kaynakları ara
+        const keywords = bbcArticle.title.split(" ").slice(0, 3).join(" "); // İlk 3 kelimeyi al
+        const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+          keywords
+        )}&language=en&excludeDomains=bbc.co.uk&sortBy=relevancy&pageSize=3&apiKey=${
+          process.env.NEWSAPI_KEY
+        }`;
+
+        const relatedResponse = await axios.get(relatedUrl);
+        const relatedArticles = relatedResponse.data.articles;
+
+        // 3. ChatGPT ile kapsamlı bir analiz oluştur
+        const analysis = await generateComprehensiveAnalysis(
+          bbcArticle,
+          relatedArticles
+        );
+
+        return {
+          mainArticle: {
+            title: bbcArticle.title,
+            description: bbcArticle.description,
+            content: bbcArticle.content,
+            url: bbcArticle.url,
+            imageUrl: bbcArticle.urlToImage,
+            publishedAt: new Date(bbcArticle.publishedAt),
+            source: bbcArticle.source.name,
+          },
+          relatedArticles: relatedArticles.map((article: any) => ({
+            title: article.title,
+            source: article.source.name,
+            url: article.url,
+            publishedAt: new Date(article.publishedAt),
+          })),
+          analysis,
+        };
+      })
+    );
+
+    return enrichedArticles;
+  } catch (error) {
+    console.error("Error fetching news:", error);
+    throw error;
+  }
+}
+
+// ChatGPT ile kapsamlı analiz oluştur
+async function generateComprehensiveAnalysis(
+  mainArticle: any,
+  relatedArticles: any[]
+) {
+  try {
+    const prompt = `
+    Main Article Analysis Request:
+
+Title: ${mainArticle.title}
+Content: ${mainArticle.content || mainArticle.description}
+
+Related Coverage:
+${relatedArticles
+  .map((article) => `- ${article.title} (${article.source})`)
+  .join("\n")}
+
+Please provide a comprehensive news analysis addressing the following elements:
+
+1. Summary (2-3 paragraphs, max 20 sentences):
+   - Who, What, When, Where, Why, and How with specific details
+   - Include relevant numbers, proper nouns, and concrete examples
+   - Historical context and background information
+
+2. Multiple Perspectives:
+   - Present diverse viewpoints from different news sources
+   - Highlight any contrasting opinions or interpretations
+   - Include expert opinions when available
+
+3. Impact Analysis:
+   - Immediate effects
+   - Potential long-term consequences
+   - Who is affected and how
+
+4. Supporting Context:
+   - Related historical events
+   - Previous developments
+   - Relevant statistics or data
+
+5. Additional Resources:
+   - Links to reputable sources for further reading
+   - Fact-checking sources if applicable
+
+Writing Guidelines:
+- Maintain warm, accessible language while adhering to journalistic standards
+- Ensure objectivity and neutrality
+- Avoid sensationalism and emotional manipulation
+- Use clear, concise language
+- Include verified information only
+- Acknowledge any limitations in available information
+- End with a constructive or forward-looking perspective
+
+Please write in a professional journalistic style that balances accessibility with authority, as if explaining to a well-informed friend.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 500,
+      max_tokens: 4000,
       temperature: 0.7,
     });
-
+    console.log("response:");
+    console.log(response.choices[0].message.content);
     return response.choices[0].message.content?.trim();
   } catch (error) {
     console.error("Error generating analysis:", error);
@@ -29,83 +132,14 @@ async function generateDetailedAnalysis(title: string, content: string) {
   }
 }
 
-async function fetchAndProcessNews(
-  query: string,
-  fromDate: string,
-  toDate: string
-) {
-  const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-    query
-  )}&from=${fromDate}&to=${toDate}&sortBy=popularity&pageSize=5&apiKey=${
-    process.env.NEWSAPI_KEY
-  }`;
-
-  const newsResponse = await axios.get(url);
-  const articles = newsResponse.data.articles;
-
-  return Promise.all(
-    articles.map(async (article: any) => {
-      try {
-        const articleResponse = await axios.get(article.url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)",
-            Accept:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-          },
-          maxRedirects: 5,
-        });
-
-        let fullContent = "";
-        const contentType = articleResponse.headers["content-type"];
-
-        if (contentType && contentType.includes("text/html")) {
-          const dom = new JSDOM(articleResponse.data, { url: article.url });
-          const reader = new Readability(dom.window.document);
-          const parsedArticle = reader.parse();
-          fullContent = parsedArticle ? parsedArticle.textContent : "";
-        }
-
-        // Özet oluştur
-        const analysis = await generateDetailedAnalysis(
-          article.title,
-          fullContent || article.content || article.description
-        );
-
-        return {
-          title: article.title,
-          description: article.description,
-          content: article.content,
-          fullContent,
-          analysis,
-          url: article.url,
-          imageUrl: article.urlToImage,
-          publishedAt: new Date(article.publishedAt),
-          source: article.source.name,
-          category: query,
-        };
-      } catch (error) {
-        console.error(`Error processing article: ${article.url}`, error);
-        return null;
-      }
-    })
-  );
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("query") || "trending";
-
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const fromDate = yesterday.toISOString().split("T")[0];
-    const toDate = now.toISOString().split("T")[0];
 
+    // Önbellekten kontrol et
     const cachedNews = await prisma.news.findMany({
       where: {
-        category: query,
         publishedAt: {
           gte: yesterday,
           lte: now,
@@ -114,26 +148,49 @@ export async function GET(request: NextRequest) {
       orderBy: {
         publishedAt: "desc",
       },
+      include: {
+        relatedArticles: true,
+      },
     });
 
-    if (cachedNews.length > 5) {
-      return NextResponse.json({ articles: cachedNews.slice(0, 5) });
+    if (cachedNews.length > 0) {
+      return NextResponse.json({ articles: cachedNews });
     }
 
-    const articles = await fetchAndProcessNews(query, fromDate, toDate);
-    const validArticles = articles.filter((article) => article !== null);
+    // Yeni verileri getir
+    const enrichedArticles = await fetchAndProcessNews();
 
-    await prisma.$transaction(
-      validArticles.map((article: any) =>
-        prisma.news.upsert({
-          where: { url: article.url },
-          update: article,
-          create: article,
-        })
-      )
+    // Veritabanına kaydet
+    const savedArticles = await Promise.all(
+      enrichedArticles.map(async (article: any) => {
+        const saved = await prisma.news.upsert({
+          where: {
+            url: article.mainArticle.url,
+          },
+          update: {
+            ...article.mainArticle,
+            analysis: article.analysis,
+            relatedArticles: {
+              deleteMany: {}, // Remove existing related articles
+              create: article.relatedArticles,
+            },
+          },
+          create: {
+            ...article.mainArticle,
+            analysis: article.analysis,
+            relatedArticles: {
+              create: article.relatedArticles,
+            },
+          },
+          include: {
+            relatedArticles: true,
+          },
+        });
+        return saved;
+      })
     );
 
-    return NextResponse.json({ articles: validArticles });
+    return NextResponse.json({ articles: savedArticles });
   } catch (error) {
     console.error("Error in news API:", error);
     return NextResponse.json(
