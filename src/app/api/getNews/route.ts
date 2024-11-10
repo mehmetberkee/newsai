@@ -136,22 +136,56 @@ Please write in a professional journalistic style that balances accessibility wi
 
     // Sentiment analizi için ikinci bir request yap
     const sentimentPrompt = `
-    Based on the following comprehensive news analysis, provide a sentiment breakdown in percentages (positive, neutral, negative).
-    Return ONLY a JSON object with these three values, ensuring they sum to 100.
-
-    Analysis:
-    ${response.choices[0].message.content}
-
-    Example expected format:
-    {
-      "positive": 30,
-      "neutral": 45,
-      "negative": 25
-    }`;
+    ${response.choices[0].message.content}`;
 
     const sentimentResponse = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "user", content: sentimentPrompt }],
+      messages: [
+        {
+          role: "system",
+          content: `Given a news article, analyze its sentiment and provide a percentage breakdown with careful consideration of specific content markers:
+
+NEGATIVE markers (weight heavily):
+- Deaths, accidents, disasters
+- Violence, crime, conflict
+- Economic losses, bankruptcies
+- Environmental damage
+- Social problems, discrimination
+- Health crises, illnesses
+
+POSITIVE markers (weight heavily):
+- Achievements, successes, victories
+- Scientific/medical breakthroughs
+- Economic growth, job creation
+- Environmental improvements
+- Social progress, unity
+- Health improvements, recoveries
+- Aid, rescue, support actions
+
+NEUTRAL markers:
+- Factual statements
+- Statistical reports
+- Procedural updates
+- Policy announcements
+- General information
+
+Return ONLY a JSON object with three percentage values that sum to 100:
+{
+  "positive": N,
+  "neutral": N,
+  "negative": N
+}
+
+Guidelines:
+- Death/tragedy content should heavily influence negative scoring (at least 60% negative)
+- Major positive developments should score at least 50% positive
+- Multiple deaths/injuries should increase negative percentage substantially
+- Rescue/recovery efforts in negative situations should add some positive weight
+- Pure informational content should weight toward neutral
+- Consider both explicit and implicit sentiment indicators`,
+        },
+        { role: "user", content: sentimentPrompt },
+      ],
       response_format: { type: "json_object" },
       max_tokens: 100,
       temperature: 0.3,
