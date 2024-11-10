@@ -1,10 +1,10 @@
 "use client";
-
+export const runtime = "edge";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 // dynamic export'u kaldıralım
-// export const dynamic = "force-dynamic";
+//
 
 function VerifyEmail() {
   const router = useRouter();
