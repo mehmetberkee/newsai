@@ -55,7 +55,6 @@ model News {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
-  // Yeni ilişkiler
   savedBy       UserSavedNews[]
   comments      Comment[]
 }

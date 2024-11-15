@@ -48,7 +48,36 @@ function NewsDetail({ title }: NewsDetailProps) {
               {newsItem.analysis}
             </ReactMarkdown>
           </div>
-          <p className="text-gray-500">{newsItem.source}</p>
+          <div className="text-gray-500">
+            <p>Sources:</p>
+            <ul className="list-disc pl-5">
+              {Array.from(
+                new Set([
+                  newsItem.source,
+                  ...(newsItem.relatedArticles?.map(
+                    (article) => article.source
+                  ) || []),
+                ])
+              ).map((source, index) => (
+                <li key={index}>
+                  <a
+                    href={
+                      source === newsItem.source
+                        ? newsItem.url
+                        : newsItem.relatedArticles?.find(
+                            (article) => article.source === source
+                          )?.url
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-purple-500 hover:underline"
+                  >
+                    {source}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <div className="flex items-center gap-4 mt-8">
             <a

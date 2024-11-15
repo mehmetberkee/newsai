@@ -11,58 +11,74 @@ const openai = new OpenAI({
 // BBC'den başlıkları al ve diğer kaynaklardan ilgili haberleri getir
 async function fetchAndProcessNews() {
   try {
-    // 1. BBC'den başlıkları al
-    const bbcUrl = `https://newsapi.org/v2/top-headlines?sources=bbc-news&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
-    const bbcResponse = await axios.get(bbcUrl);
-    const bbcArticles = bbcResponse.data.articles;
+    // 1. Get top headlines from US sources
+    const topHeadlinesUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
+    const headlinesResponse = await axios.get(topHeadlinesUrl);
+    const topArticles = headlinesResponse.data.articles.slice(0, 5);
+    console.log("topArticles:", topArticles);
+    // 2. Process each top headline
+    const enrichedArticles = (
+      await Promise.allSettled(
+        topArticles.map(async (mainArticle: any) => {
+          try {
+            // Search for related articles using keywords from the main article
+            const keywords = mainArticle.title.split(" ").slice(0, 3).join(" ");
+            const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+              keywords
+            )}&language=en&excludeDomains=${
+              mainArticle.source.name
+            }&sortBy=relevancy&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
 
-    // 2. Her BBC haberi için diğer kaynakları tara
-    const enrichedArticles = await Promise.all(
-      bbcArticles.map(async (bbcArticle: any) => {
-        // BBC başlığındaki anahtar kelimeleri kullanarak diğer kaynakları ara
-        const keywords = bbcArticle.title.split(" ").slice(0, 3).join(" "); // İlk 3 kelimeyi al
-        const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-          keywords
-        )}&language=en&excludeDomains=bbc.co.uk&sortBy=relevancy&pageSize=3&apiKey=${
-          process.env.NEWSAPI_KEY
-        }`;
+            const relatedResponse = await axios.get(relatedUrl);
+            const relatedArticles = relatedResponse.data.articles;
 
-        const relatedResponse = await axios.get(relatedUrl);
-        const relatedArticles = relatedResponse.data.articles;
+            // 3. ChatGPT ile kapsamlı bir analiz oluştur
+            const analysis = await generateComprehensiveAnalysis(
+              mainArticle,
+              relatedArticles
+            );
 
-        // 3. ChatGPT ile kapsamlı bir analiz oluştur
-        const analysis = await generateComprehensiveAnalysis(
-          bbcArticle,
-          relatedArticles
-        );
-
-        return {
-          mainArticle: {
-            title: bbcArticle.title,
-            description: bbcArticle.description,
-            content: bbcArticle.content,
-            url: bbcArticle.url,
-            imageUrl: bbcArticle.urlToImage,
-            publishedAt: new Date(bbcArticle.publishedAt),
-            source: bbcArticle.source.name,
-          },
-          relatedArticles: await Promise.all(
-            relatedArticles.map(async (article: any) => {
-              const fullContent = await scrapeArticleContent(article.url);
-              return {
-                title: article.title,
-                source: article.source.name,
-                url: article.url,
-                publishedAt: new Date(article.publishedAt),
-                content: fullContent || article.content,
-                description: article.description,
-              };
-            })
-          ),
-          analysis,
-        };
-      })
-    );
+            return {
+              mainArticle: {
+                title: mainArticle.title,
+                description: mainArticle.description,
+                content: mainArticle.content,
+                url: mainArticle.url,
+                imageUrl: mainArticle.urlToImage,
+                publishedAt: new Date(mainArticle.publishedAt),
+                source: mainArticle.source.name,
+              },
+              relatedArticles: await Promise.all(
+                relatedArticles.map(async (article: any) => {
+                  const fullContent = await scrapeArticleContent(article.url);
+                  return {
+                    title: article.title,
+                    source: article.source.name,
+                    url: article.url,
+                    publishedAt: new Date(article.publishedAt),
+                    content: fullContent || article.content,
+                    description: article.description,
+                  };
+                })
+              ),
+              analysis,
+            };
+          } catch (error) {
+            console.error(
+              `Error processing article: ${mainArticle.title}`,
+              error
+            );
+            return null;
+          }
+        })
+      )
+    )
+      .filter(
+        (result): result is PromiseFulfilledResult<any> =>
+          result.status === "fulfilled" && result.value !== null
+      )
+      .map((result) => result.value)
+      .slice(0, 5);
 
     return enrichedArticles;
   } catch (error) {
@@ -234,6 +250,8 @@ export async function GET(request: NextRequest) {
       take: 5,
       include: {
         relatedArticles: true,
+        savedBy: true,
+        comments: true,
       },
     });
 

@@ -10,6 +10,10 @@ interface NewsItem {
   sentiment: any;
   url: string;
   publishedAt: string;
+  relatedArticles: {
+    source: string;
+    url: string;
+  }[];
 }
 
 const fetchNews = async (query: string): Promise<NewsItem[]> => {
