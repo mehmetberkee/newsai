@@ -3,25 +3,43 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const news = await prisma.news.findMany({
-      orderBy: {
-        publishedAt: "desc",
-      },
-      include: {
-        _count: {
-          select: {
-            comments: true,
-            savedBy: true,
+    const [news, relatedArticles] = await Promise.all([
+      prisma.news.findMany({
+        include: {
+          _count: {
+            select: {
+              comments: true,
+              savedBy: true,
+            },
           },
         },
-      },
-    });
+        orderBy: {
+          publishedAt: "desc",
+        },
+      }),
+      prisma.relatedArticle.findMany({
+        include: {
+          news: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: {
+          publishedAt: "desc",
+        },
+      }),
+    ]);
 
-    return NextResponse.json({ news });
+    return NextResponse.json({
+      news,
+      relatedArticles,
+    });
   } catch (error) {
-    console.error("Error fetching news:", error);
+    console.error("Error fetching admin news data:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

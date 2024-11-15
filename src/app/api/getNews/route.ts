@@ -21,8 +21,8 @@ async function fetchAndProcessNews() {
       await Promise.allSettled(
         topArticles.map(async (mainArticle: any) => {
           try {
-            // Search for related articles using keywords from the main article
-            const keywords = mainArticle.title.split(" ").slice(0, 3).join(" ");
+            // AI ile anahtar kelimeleri çıkar
+            const keywords = await extractKeywordsFromTitle(mainArticle.title);
             const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
               keywords
             )}&language=en&excludeDomains=${
@@ -240,6 +240,37 @@ async function scrapeArticleContent(url: string) {
   }
 }
 
+// Yeni fonksiyon ekleyelim
+async function extractKeywordsFromTitle(title: string) {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Extract 2-3 most important keywords from the news title. Return only the keywords separated by spaces, no punctuation.",
+        },
+        {
+          role: "user",
+          content: title,
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 50,
+    });
+
+    return (
+      response.choices[0].message.content?.trim() ||
+      title.split(" ").slice(0, 3).join(" ")
+    );
+  } catch (error) {
+    console.error("Error extracting keywords:", error);
+    // Hata durumunda orijinal yönteme geri dön
+    return title.split(" ").slice(0, 3).join(" ");
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Son 5 haberi al
@@ -250,8 +281,6 @@ export async function GET(request: NextRequest) {
       take: 5,
       include: {
         relatedArticles: true,
-        savedBy: true,
-        comments: true,
       },
     });
 

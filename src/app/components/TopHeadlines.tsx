@@ -65,7 +65,15 @@ function TopHeadlines() {
                   {newsItem.description}
                 </p>
                 <p className="text-gray-500 text-sm">
-                  Source: {newsItem.source}
+                  Sources:{" "}
+                  {Array.from(
+                    new Set([
+                      newsItem.source,
+                      ...(newsItem.relatedArticles?.map(
+                        (article) => article.source
+                      ) || []),
+                    ])
+                  ).join(", ")}
                 </p>
               </div>
             </div>
