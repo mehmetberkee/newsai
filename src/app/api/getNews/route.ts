@@ -11,11 +11,51 @@ const openai = new OpenAI({
 // BBC'den başlıkları al ve diğer kaynaklardan ilgili haberleri getir
 async function fetchAndProcessNews() {
   try {
-    // 1. Get top headlines from US sources
-    const topHeadlinesUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
-    const headlinesResponse = await axios.get(topHeadlinesUrl);
+    // Define preferred sources
+    const preferredSources = [
+      "bbc-news",
+      "wall-street-journal",
+      "forbes",
+      "abc-news",
+      "reuters",
+      "associated-press",
+      "cbs-news",
+      "time",
+      "espn",
+      "cnn",
+      "nbc-news",
+      "the-new-york-times",
+      "the-washington-post",
+      "usa-today",
+      "financial-times",
+      "business-insider",
+      "newsweek",
+      "the-guardian",
+      "the-economist",
+      "bloomberg",
+      "politico",
+      "fox-news",
+      "msnbc",
+      "axios",
+      "independent",
+      "propublica",
+    ].join(",");
+
+    // 1. Get top headlines from preferred sources
+    const topHeadlinesUrl = `https://newsapi.org/v2/top-headlines?sources=${preferredSources}&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
+
+    // Fallback to US news if no results from preferred sources
+    const fallbackUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
+
+    let headlinesResponse = await axios.get(topHeadlinesUrl);
+
+    // Use fallback if no articles found
+    if (headlinesResponse.data.articles.length === 0) {
+      headlinesResponse = await axios.get(fallbackUrl);
+    }
+
     const topArticles = headlinesResponse.data.articles.slice(0, 5);
-    console.log("topArticles:", topArticles);
+
     // 2. Process each top headline
     const enrichedArticles = (
       await Promise.allSettled(
@@ -23,9 +63,10 @@ async function fetchAndProcessNews() {
           try {
             // AI ile anahtar kelimeleri çıkar
             const keywords = await extractKeywordsFromTitle(mainArticle.title);
+            console.log("keywords:", keywords);
             const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
               keywords
-            )}&language=en&excludeDomains=${
+            )}&language=en&sources=${preferredSources}&excludeDomains=${
               mainArticle.source.name
             }&sortBy=relevancy&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
 
@@ -147,8 +188,6 @@ Please write in a professional journalistic style that balances accessibility wi
       max_tokens: 4000,
       temperature: 0.7,
     });
-    console.log("response:");
-    console.log(response.choices[0].message.content);
 
     // Sentiment analizi için ikinci bir request yap
     const sentimentPrompt = `
@@ -244,12 +283,26 @@ async function scrapeArticleContent(url: string) {
 async function extractKeywordsFromTitle(title: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content:
-            "Extract 2-3 most important keywords from the news title. Return only the keywords separated by spaces, no punctuation.",
+          content: `Extract 2-3 most essential search terms from the news title that would yield the best search results. 
+          Guidelines:
+          - Focus on core topics, entities, or events
+          - Remove unnecessary words (articles, conjunctions)
+          - Keep proper nouns and specific terms
+          - For numbers or statistics, keep only if crucial to the story
+          - Avoid overly specific details that might limit search results
+          
+          Return only the keywords separated by spaces, no punctuation.
+          
+          Examples:
+          Input: "U.S. Senate approves $95 billion aid package for Ukraine and Israel"
+          Output: Ukraine Israel aid
+          
+          Input: "Tesla reports record quarterly earnings despite market challenges"
+          Output: Tesla earnings record`,
         },
         {
           role: "user",
@@ -260,13 +313,16 @@ async function extractKeywordsFromTitle(title: string) {
       max_tokens: 50,
     });
 
-    return (
+    const keywords =
       response.choices[0].message.content?.trim() ||
-      title.split(" ").slice(0, 3).join(" ")
-    );
+      title.split(" ").slice(0, 3).join(" ");
+
+    console.log("Original title:", title);
+    console.log("Extracted keywords:", keywords);
+
+    return keywords;
   } catch (error) {
     console.error("Error extracting keywords:", error);
-    // Hata durumunda orijinal yönteme geri dön
     return title.split(" ").slice(0, 3).join(" ");
   }
 }
@@ -285,7 +341,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (cachedNews.length > 0) {
-      console.log("cached:", cachedNews);
       return NextResponse.json({ articles: cachedNews });
     }
 
@@ -295,59 +350,86 @@ export async function GET(request: NextRequest) {
     // Veritabanına kaydet
     const savedArticles = await Promise.all(
       enrichedArticles.map(async (article: any) => {
-        const saved = await prisma.news.upsert({
-          where: {
-            url: article.mainArticle.url,
-          },
-          update: {
-            title: article.mainArticle.title,
-            description: article.mainArticle.description,
-            content: article.mainArticle.content,
-            imageUrl: article.mainArticle.imageUrl,
-            publishedAt: article.mainArticle.publishedAt,
-            source: article.mainArticle.source,
-            analysis: article.analysis.analysis,
-            sentiment: article.analysis.sentiment,
-            relatedArticles: {
-              deleteMany: {},
-              create: article.relatedArticles.map((related: any) => ({
-                title: related.title,
-                source: related.source,
-                url: related.url,
-                publishedAt: related.publishedAt,
-                content: related.content,
-                description: related.description,
-              })),
+        try {
+          // Önce bu URL'ye sahip bir kayıt var mı kontrol et
+          const existingArticle = await prisma.news.findUnique({
+            where: {
+              url: article.mainArticle.url,
             },
-          },
-          create: {
-            title: article.mainArticle.title,
-            description: article.mainArticle.description,
-            content: article.mainArticle.content,
-            url: article.mainArticle.url,
-            imageUrl: article.mainArticle.imageUrl,
-            publishedAt: article.mainArticle.publishedAt,
-            source: article.mainArticle.source,
-            analysis: article.analysis.analysis,
-            sentiment: article.analysis.sentiment,
-            relatedArticles: {
-              create: article.relatedArticles.map((related: any) => ({
-                title: related.title,
-                source: related.source,
-                url: related.url,
-                publishedAt: related.publishedAt,
-                content: related.content,
-                description: related.description,
-              })),
+            include: {
+              relatedArticles: true,
             },
-          },
-          include: {
-            relatedArticles: true,
-          },
-        });
-        return saved;
+          });
+
+          if (existingArticle) {
+            // Kayıt varsa güncelle
+            return await prisma.news.update({
+              where: {
+                url: article.mainArticle.url,
+              },
+              data: {
+                title: article.mainArticle.title,
+                description: article.mainArticle.description,
+                content: article.mainArticle.content,
+                imageUrl: article.mainArticle.imageUrl,
+                publishedAt: article.mainArticle.publishedAt,
+                source: article.mainArticle.source,
+                analysis: article.analysis.analysis,
+                sentiment: article.analysis.sentiment,
+                relatedArticles: {
+                  deleteMany: {},
+                  create: article.relatedArticles.map((related: any) => ({
+                    title: related.title,
+                    source: related.source,
+                    url: related.url,
+                    publishedAt: related.publishedAt,
+                    content: related.content,
+                    description: related.description,
+                  })),
+                },
+              },
+              include: {
+                relatedArticles: true,
+              },
+            });
+          } else {
+            // Kayıt yoksa yeni oluştur
+            return await prisma.news.create({
+              data: {
+                title: article.mainArticle.title,
+                description: article.mainArticle.description,
+                content: article.mainArticle.content,
+                url: article.mainArticle.url,
+                imageUrl: article.mainArticle.imageUrl,
+                publishedAt: article.mainArticle.publishedAt,
+                source: article.mainArticle.source,
+                analysis: article.analysis.analysis,
+                sentiment: article.analysis.sentiment,
+                relatedArticles: {
+                  create: article.relatedArticles.map((related: any) => ({
+                    title: related.title,
+                    source: related.source,
+                    url: related.url,
+                    publishedAt: related.publishedAt,
+                    content: related.content,
+                    description: related.description,
+                  })),
+                },
+              },
+              include: {
+                relatedArticles: true,
+              },
+            });
+          }
+        } catch (error) {
+          console.error(
+            `Error saving article: ${article.mainArticle.url}`,
+            error
+          );
+          return null;
+        }
       })
-    );
+    ).then((articles) => articles.filter((article) => article !== null));
 
     return NextResponse.json({ articles: savedArticles });
   } catch (error) {
