@@ -8,6 +8,80 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+async function selectTopBreakingNews(articles: any[]) {
+  try {
+    const prompt = `Analyze these news articles and:
+1. Select the 5 most important breaking news stories based on:
+   - Immediacy and timeliness
+   - Global/national impact
+   - Public interest
+   - Significance of developments
+2. Categorize each selected article into ONE of these categories:
+   - World
+   - Business
+   - Technology
+   - Science
+   - Health
+   - Sports
+   - Lifestyle
+
+Return a JSON object with an "articles" array containing 5 objects with:
+- index: original position in the input array (0-9)
+- category: selected category
+
+Example response:
+{
+  "articles": [
+    {"index": 2, "category": "World"},
+    {"index": 5, "category": "Technology"},
+    {"index": 0, "category": "Health"},
+    {"index": 8, "category": "Business"},
+    {"index": 4, "category": "Sports"}
+  ]
+}
+
+Input articles:
+${articles
+  .map(
+    (article, idx) => `
+${idx}. ${article.title}
+Description: ${article.description || "N/A"}`
+  )
+  .join("\n")}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+
+    // Validate and use the articles array from the response
+    if (!result.articles || !Array.isArray(result.articles)) {
+      console.error("Invalid response format from AI:", result);
+      return {
+        articles: Array.from({ length: 5 }, (_, i) => ({
+          index: i,
+          category: "World",
+        })),
+      };
+    }
+
+    return result;
+  } catch (error) {
+    console.error("Error selecting top breaking news:", error);
+    // Fallback to first 5 articles with default categorization
+    return {
+      articles: Array.from({ length: 5 }, (_, i) => ({
+        index: i,
+        category: "World",
+      })),
+    };
+  }
+}
+
 async function fetchAndProcessNews() {
   try {
     // Define preferred sources
@@ -53,12 +127,21 @@ async function fetchAndProcessNews() {
       headlinesResponse = await axios.get(fallbackUrl);
     }
 
-    const topArticles = headlinesResponse.data.articles.slice(0, 5);
+    const topArticles = headlinesResponse.data.articles.slice(0, 10);
 
-    // 2. Process each top headline
+    // Get AI selection of top 5 breaking news
+    const selectedNews = await selectTopBreakingNews(topArticles);
+
+    // Filter and sort articles based on AI selection
+    const selectedArticles = selectedNews.articles.map((selection) => ({
+      ...topArticles[selection.index],
+      category: selection.category,
+    }));
+
+    // Process selected articles
     const enrichedArticles = (
       await Promise.allSettled(
-        topArticles.map(async (mainArticle: any) => {
+        selectedArticles.map(async (mainArticle: any) => {
           try {
             // AI ile anahtar kelimeleri çıkar
             const keywords = await extractKeywordsFromTitle(mainArticle.title);
@@ -87,6 +170,7 @@ async function fetchAndProcessNews() {
                 imageUrl: mainArticle.urlToImage,
                 publishedAt: new Date(mainArticle.publishedAt),
                 source: mainArticle.source.name,
+                category: mainArticle.category,
               },
               relatedArticles: await Promise.all(
                 relatedArticles.map(async (article: any) => {
@@ -410,6 +494,7 @@ export async function GET(request: NextRequest) {
                 publishedAt: article.mainArticle.publishedAt,
                 source: article.mainArticle.source,
                 analysis: article.analysis.analysis,
+                category: article.mainArticle.category,
                 sentiment: article.analysis.sentiment,
                 relatedArticles: {
                   deleteMany: {},
@@ -436,6 +521,7 @@ export async function GET(request: NextRequest) {
                 content: article.mainArticle.content,
                 url: article.mainArticle.url,
                 imageUrl: article.mainArticle.imageUrl,
+                category: article.mainArticle.category,
                 publishedAt: article.mainArticle.publishedAt,
                 source: article.mainArticle.source,
                 analysis: article.analysis.analysis,

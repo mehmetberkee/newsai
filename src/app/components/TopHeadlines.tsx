@@ -23,6 +23,20 @@ function TopHeadlines() {
     router.push(`/news/${encodeURIComponent(newsItem.title)}`);
   };
 
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      World: "bg-blue-500",
+      Business: "bg-green-500",
+      Technology: "bg-purple-500",
+      Science: "bg-indigo-500",
+      Health: "bg-red-500",
+      Sports: "bg-orange-500",
+      Lifestyle: "bg-pink-500",
+    } as const;
+
+    return colors[category as keyof typeof colors] || "bg-gray-500";
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <h1 className="text-5xl text-center mb-2">
@@ -55,12 +69,25 @@ function TopHeadlines() {
                 />
               </div>
               <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span
+                    className={`
+                    ${getCategoryColor(newsItem.category)}
+                    text-white 
+                    px-3 
+                    py-1 
+                    rounded-full 
+                    text-sm 
+                    font-medium
+                    tracking-wide
+                  `}
+                  >
+                    {newsItem.category}
+                  </span>
+                </div>
                 <h3 className="text-[32px] tracking-[0%] leading-[120%] mb-2 hover:text-purple-600 transition-colors">
                   {newsItem.title}
                 </h3>
-                <span className="text-[20px] tracking-[0%] leading-[120%] text-purple-500 font-bold">
-                  {newsItem.category}
-                </span>
                 <p className="text-[16px] tracking-[0%] leading-[140%] text-[#1E1E1E] mt-7 mb-4">
                   {newsItem.description}
                 </p>

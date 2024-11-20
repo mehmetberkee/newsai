@@ -54,7 +54,7 @@ model News {
   relatedArticles RelatedArticle[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  
+  category        String
   savedBy       UserSavedNews[]
   comments      Comment[]
 }
