@@ -13,6 +13,9 @@ interface NewsItem {
   relatedArticles: {
     source: string;
     url: string;
+    imageUrl: string;
+    title: string;
+    publishedAt: any;
   }[];
 }
 

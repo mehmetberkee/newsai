@@ -151,7 +151,7 @@ async function fetchAndProcessNews() {
     const selectedNews = await selectTopBreakingNews(topArticles);
 
     // Filter and sort articles based on AI selection
-    const selectedArticles = selectedNews.articles.map((selection) => ({
+    const selectedArticles = selectedNews.articles.map((selection: any) => ({
       ...topArticles[selection.index],
       category: selection.category,
     }));
@@ -485,8 +485,8 @@ export async function GET(request: NextRequest) {
     const savedArticles = await Promise.all(
       validArticles.map(async (article: any) => {
         try {
-          // Önce bu URL'ye sahip bir kayıt var mı kontrol et
-          const existingArticle = await prisma.news.findUnique({
+          // First try to find by URL
+          const existingArticles = await prisma.news.findMany({
             where: {
               url: article.mainArticle.url,
             },
@@ -495,11 +495,13 @@ export async function GET(request: NextRequest) {
             },
           });
 
+          const existingArticle = existingArticles[0];
+
           if (existingArticle) {
-            // Kayıt varsa güncelle
+            // Update existing article
             return await prisma.news.update({
               where: {
-                url: article.mainArticle.url,
+                id: existingArticle.id,
               },
               data: {
                 title: article.mainArticle.title,
@@ -529,7 +531,7 @@ export async function GET(request: NextRequest) {
               },
             });
           } else {
-            // Kayıt yoksa yeni oluştur
+            // Create new article
             return await prisma.news.create({
               data: {
                 title: article.mainArticle.title,

@@ -45,7 +45,7 @@ model News {
   title           String
   description     String?   @db.Text
   content         String?   @db.Text
-  url             String
+  url             String   @unique
   imageUrl        String?
   publishedAt     DateTime
   source          String
