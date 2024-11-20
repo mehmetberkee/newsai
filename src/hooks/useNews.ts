@@ -6,7 +6,7 @@ interface NewsItem {
   description: string;
   source: string;
   analysis: string;
-  imageUrl: string;
+  imageUrl?: string;
   sentiment: any;
   url: string;
   publishedAt: string;

@@ -45,7 +45,7 @@ model News {
   title           String
   description     String?   @db.Text
   content         String?   @db.Text
-  url             String    @unique
+  url             String
   imageUrl        String?
   publishedAt     DateTime
   source          String
@@ -63,7 +63,7 @@ model RelatedArticle {
   id          String   @id @default(cuid())
   title       String
   source      String
-  url         String   @unique
+  url         String
   publishedAt DateTime
   content     String?  @db.Text
   description String?  @db.Text

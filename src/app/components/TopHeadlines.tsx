@@ -49,7 +49,7 @@ function TopHeadlines() {
             >
               <div className="md:w-1/2 h-[350px] relative overflow-hidden">
                 <img
-                  src={newsItem.imageUrl || "/placeholder-image.jpg"}
+                  src={newsItem.imageUrl || "/news2.png"}
                   alt={newsItem.title}
                   className="object-cover rounded-lg hover:scale-105 transition-transform duration-300"
                 />

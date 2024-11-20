@@ -8,7 +8,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// BBC'den başlıkları al ve diğer kaynaklardan ilgili haberleri getir
 async function fetchAndProcessNews() {
   try {
     // Define preferred sources
@@ -42,7 +41,7 @@ async function fetchAndProcessNews() {
     ].join(",");
 
     // 1. Get top headlines from preferred sources
-    const topHeadlinesUrl = `https://newsapi.org/v2/top-headlines?sources=${preferredSources}&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
+    const topHeadlinesUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
 
     // Fallback to US news if no results from preferred sources
     const fallbackUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
@@ -84,7 +83,7 @@ async function fetchAndProcessNews() {
                 title: mainArticle.title,
                 description: mainArticle.description,
                 content: mainArticle.content,
-                url: mainArticle.url,
+                url: mainArticle.url || `${Date.now()}`,
                 imageUrl: mainArticle.urlToImage,
                 publishedAt: new Date(mainArticle.publishedAt),
                 source: mainArticle.source.name,
@@ -95,7 +94,7 @@ async function fetchAndProcessNews() {
                   return {
                     title: article.title,
                     source: article.source.name,
-                    url: article.url,
+                    url: article.url || `${Date.now()}`,
                     publishedAt: new Date(article.publishedAt),
                     content: fullContent || article.content,
                     description: article.description,
@@ -134,15 +133,27 @@ async function generateComprehensiveAnalysis(
   relatedArticles: any[]
 ) {
   try {
+    const relatedArticlesWithContent = await Promise.all(
+      relatedArticles.map(async (article) => ({
+        ...article,
+        fullContent: await scrapeArticleContent(article.url),
+      }))
+    );
+
     const prompt = `
     Main Article Analysis Request:
 
 Title: ${mainArticle.title}
 Content: ${mainArticle.content || mainArticle.description}
 
+
 Related Coverage:
-${relatedArticles
-  .map((article) => `- ${article.title} (${article.source})`)
+${relatedArticlesWithContent
+  .map(
+    (article) => `
+- ${article.title} (${article.source})
+  Content: ${article.fullContent || article.content || article.description}`
+  )
   .join("\n")}
 
 Please provide a comprehensive news analysis addressing the following elements:
@@ -183,18 +194,24 @@ Writing Guidelines:
 Please write in a professional journalistic style that balances accessibility with authority, as if explaining to a well-informed friend.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 4000,
       temperature: 0.7,
     });
+    console.log(`Title: ${mainArticle.title}
+Content: ${mainArticle.content || mainArticle.description}
 
+Related Coverage:
+${relatedArticles
+  .map((article) => `- ${article.title} (${article.source})`)
+  .join("\n")}`);
     // Sentiment analizi için ikinci bir request yap
     const sentimentPrompt = `
     ${response.choices[0].message.content}`;
 
     const sentimentResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -283,7 +300,7 @@ async function scrapeArticleContent(url: string) {
 async function extractKeywordsFromTitle(title: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -347,9 +364,27 @@ export async function GET(request: NextRequest) {
     // Yeni verileri getir
     const enrichedArticles = await fetchAndProcessNews();
 
+    // Filter out articles with [Removed] content
+    const validArticles = enrichedArticles.filter((article: any) => {
+      const isValidMain =
+        article.mainArticle.title &&
+        article.mainArticle.title !== "[Removed]" &&
+        article.mainArticle.content !== "[Removed]";
+
+      const validRelated = article.relatedArticles.filter(
+        (related: any) =>
+          related.title &&
+          related.title !== "[Removed]" &&
+          related.content !== "[Removed]"
+      );
+
+      article.relatedArticles = validRelated; // Update related articles with filtered list
+      return isValidMain;
+    });
+
     // Veritabanına kaydet
     const savedArticles = await Promise.all(
-      enrichedArticles.map(async (article: any) => {
+      validArticles.map(async (article: any) => {
         try {
           // Önce bu URL'ye sahip bir kayıt var mı kontrol et
           const existingArticle = await prisma.news.findUnique({
@@ -431,7 +466,10 @@ export async function GET(request: NextRequest) {
       })
     ).then((articles) => articles.filter((article) => article !== null));
 
-    return NextResponse.json({ articles: savedArticles });
+    const filteredSavedArticles = savedArticles.filter(
+      (article) => article !== null
+    );
+    return NextResponse.json({ articles: filteredSavedArticles });
   } catch (error) {
     console.error("Error in news API:", error);
     return NextResponse.json(
