@@ -65,6 +65,7 @@ model RelatedArticle {
   source      String
   url         String
   publishedAt DateTime
+  imageUrl    String?
   content     String?  @db.Text
   description String?  @db.Text
   news        News     @relation(fields: [newsId], references: [id])

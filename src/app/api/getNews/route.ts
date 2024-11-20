@@ -16,6 +16,7 @@ async function selectTopBreakingNews(articles: any[]) {
    - Global/national impact
    - Public interest
    - Significance of developments
+   - Number of related articles available (prefer stories with more coverage)
 2. Categorize each selected article into ONE of these categories:
    - World
    - Business
@@ -40,17 +41,18 @@ Example response:
   ]
 }
 
-Input articles:
+Input articles with related coverage count:
 ${articles
   .map(
     (article, idx) => `
 ${idx}. ${article.title}
-Description: ${article.description || "N/A"}`
+Description: ${article.description || "N/A"}
+Related Coverage Count: ${article.relatedArticlesCount || 0} articles`
   )
   .join("\n")}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.3,
@@ -127,7 +129,23 @@ async function fetchAndProcessNews() {
       headlinesResponse = await axios.get(fallbackUrl);
     }
 
-    const topArticles = headlinesResponse.data.articles.slice(0, 10);
+    const topArticles = await Promise.all(
+      headlinesResponse.data.articles.slice(0, 10).map(async (article: any) => {
+        // Her makale için related article sayısını hesapla
+        const keywords = await extractKeywordsFromTitle(article.title);
+        const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+          keywords
+        )}&language=en&sources=${preferredSources}&excludeDomains=${
+          article.source.name
+        }&sortBy=relevancy&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
+
+        const relatedResponse = await axios.get(relatedUrl);
+        return {
+          ...article,
+          relatedArticlesCount: relatedResponse.data.articles.length,
+        };
+      })
+    );
 
     // Get AI selection of top 5 breaking news
     const selectedNews = await selectTopBreakingNews(topArticles);
@@ -182,6 +200,7 @@ async function fetchAndProcessNews() {
                     publishedAt: new Date(article.publishedAt),
                     content: fullContent || article.content,
                     description: article.description,
+                    imageUrl: article.urlToImage,
                   };
                 })
               ),
@@ -262,10 +281,6 @@ Please provide a comprehensive news analysis addressing the following elements:
    - Previous developments
    - Relevant statistics or data
 
-5. Additional Resources:
-   - Links to reputable sources for further reading
-   - Fact-checking sources if applicable
-
 Writing Guidelines:
 - Maintain warm, accessible language while adhering to journalistic standards
 - Ensure objectivity and neutrality
@@ -278,7 +293,7 @@ Writing Guidelines:
 Please write in a professional journalistic style that balances accessibility with authority, as if explaining to a well-informed friend.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       max_tokens: 4000,
       temperature: 0.7,
@@ -295,7 +310,7 @@ ${relatedArticles
     ${response.choices[0].message.content}`;
 
     const sentimentResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -384,7 +399,7 @@ async function scrapeArticleContent(url: string) {
 async function extractKeywordsFromTitle(title: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -505,6 +520,7 @@ export async function GET(request: NextRequest) {
                     publishedAt: related.publishedAt,
                     content: related.content,
                     description: related.description,
+                    imageUrl: related.imageUrl || null,
                   })),
                 },
               },
@@ -534,6 +550,7 @@ export async function GET(request: NextRequest) {
                     publishedAt: related.publishedAt,
                     content: related.content,
                     description: related.description,
+                    imageUrl: related.imageUrl || null,
                   })),
                 },
               },

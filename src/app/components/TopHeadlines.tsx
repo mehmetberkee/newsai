@@ -69,6 +69,9 @@ function TopHeadlines() {
                 />
               </div>
               <div className="flex-1">
+                <h3 className="text-[32px] tracking-[0%] leading-[120%] mb-2 hover:text-purple-600 transition-colors">
+                  {newsItem.title}
+                </h3>
                 <div className="flex items-center gap-3 mb-2">
                   <span
                     className={`
@@ -85,9 +88,6 @@ function TopHeadlines() {
                     {newsItem.category}
                   </span>
                 </div>
-                <h3 className="text-[32px] tracking-[0%] leading-[120%] mb-2 hover:text-purple-600 transition-colors">
-                  {newsItem.title}
-                </h3>
                 <p className="text-[16px] tracking-[0%] leading-[140%] text-[#1E1E1E] mt-7 mb-4">
                   {newsItem.description}
                 </p>

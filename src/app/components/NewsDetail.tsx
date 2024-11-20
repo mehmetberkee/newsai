@@ -48,36 +48,6 @@ function NewsDetail({ title }: NewsDetailProps) {
               {newsItem.analysis}
             </ReactMarkdown>
           </div>
-          <div className="text-gray-500">
-            <p>Sources:</p>
-            <ul className="list-disc pl-5">
-              {Array.from(
-                new Set([
-                  newsItem.source,
-                  ...(newsItem.relatedArticles?.map(
-                    (article) => article.source
-                  ) || []),
-                ])
-              ).map((source, index) => (
-                <li key={index}>
-                  <a
-                    href={
-                      source === newsItem.source
-                        ? newsItem.url
-                        : newsItem.relatedArticles?.find(
-                            (article) => article.source === source
-                          )?.url
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-purple-500 hover:underline"
-                  >
-                    {source}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
 
           <div className="flex items-center gap-4 mt-8">
             <a
@@ -219,6 +189,55 @@ function NewsDetail({ title }: NewsDetailProps) {
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Yeni Sources Section */}
+      <div className="w-full mt-16">
+        <h2 className="text-2xl font-bold mb-6">Sources</h2>
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-6 min-w-min">
+            {newsItem.relatedArticles?.map((article, index) => (
+              <a
+                key={index}
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-shadow w-[400px] flex-shrink-0"
+              >
+                <div className="aspect-[16/9] relative">
+                  <img
+                    src={article.imageUrl || "/placeholder-image.jpg"}
+                    alt={article.title || article.source}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold text-lg mb-2">
+                    {article.title || article.source}
+                  </h3>
+                  <div className="flex items-center text-gray-500 text-sm">
+                    <span>{article.source}</span>
+                    <span className="mx-2">•</span>
+                    <span>
+                      {article.publishedAt
+                        ? new Date(article.publishedAt).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )
+                        : "7h ago"}
+                    </span>
+                  </div>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </div>
