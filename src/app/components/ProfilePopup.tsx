@@ -25,7 +25,6 @@ function ProfilePopup({ onClose }: ProfilePopupProps) {
     setIsLoading(true);
 
     try {
-      // Şifre değişikliği kontrolü
       if (newPassword || confirmPassword || currentPassword) {
         if (newPassword !== confirmPassword) {
           throw new Error("New passwords don't match");
@@ -58,12 +57,10 @@ function ProfilePopup({ onClose }: ProfilePopupProps) {
         await update({ name });
       }
 
-      // Form alanlarını temizle
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
 
-      // 2 saniye sonra popup'ı kapat
       setTimeout(() => {
         onClose();
       }, 2000);

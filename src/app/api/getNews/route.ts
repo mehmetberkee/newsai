@@ -60,7 +60,6 @@ Related Coverage Count: ${article.relatedArticlesCount || 0} articles`
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
 
-    // Validate and use the articles array from the response
     if (!result.articles || !Array.isArray(result.articles)) {
       console.error("Invalid response format from AI:", result);
       return {
@@ -74,7 +73,6 @@ Related Coverage Count: ${article.relatedArticlesCount || 0} articles`
     return result;
   } catch (error) {
     console.error("Error selecting top breaking news:", error);
-    // Fallback to first 5 articles with default categorization
     return {
       articles: Array.from({ length: 5 }, (_, i) => ({
         index: i,
@@ -86,7 +84,6 @@ Related Coverage Count: ${article.relatedArticlesCount || 0} articles`
 
 async function fetchAndProcessNews() {
   try {
-    // Define preferred sources
     const preferredSources = [
       "bbc-news",
       "wall-street-journal",
@@ -116,7 +113,6 @@ async function fetchAndProcessNews() {
       "propublica",
     ].join(",");
 
-    // 1. Get top headlines from preferred sources
     const topHeadlinesUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
 
     // Fallback to US news if no results from preferred sources
@@ -124,7 +120,6 @@ async function fetchAndProcessNews() {
 
     let headlinesResponse = await axios.get(topHeadlinesUrl);
 
-    // Use fallback if no articles found
     if (headlinesResponse.data.articles.length === 0) {
       headlinesResponse = await axios.get(fallbackUrl);
     }
@@ -154,21 +149,17 @@ async function fetchAndProcessNews() {
       })
     );
 
-    // Get AI selection of top 5 breaking news
     const selectedNews = await selectTopBreakingNews(topArticles);
 
-    // Filter and sort articles based on AI selection
     const selectedArticles = selectedNews.articles.map((selection: any) => ({
       ...topArticles[selection.index],
       category: selection.category,
     }));
 
-    // Process selected articles
     const enrichedArticles = (
       await Promise.allSettled(
         selectedArticles.map(async (mainArticle: any) => {
           try {
-            // AI ile anahtar kelimeleri çıkar
             const keywords = await extractKeywordsFromTitle(mainArticle.title);
             console.log("keywords:", keywords);
             const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
@@ -182,7 +173,6 @@ async function fetchAndProcessNews() {
             const relatedResponse = await axios.get(relatedUrl);
             const relatedArticles = relatedResponse.data.articles;
 
-            // 3. ChatGPT ile kapsamlı bir analiz oluştur
             const analysis = await generateComprehensiveAnalysis(
               mainArticle,
               relatedArticles
@@ -239,7 +229,6 @@ async function fetchAndProcessNews() {
   }
 }
 
-// ChatGPT ile kapsamlı analiz oluştur
 async function generateComprehensiveAnalysis(
   mainArticle: any,
   relatedArticles: any[]
@@ -314,7 +303,6 @@ Related Coverage:
 ${relatedArticles
   .map((article) => `- ${article.title} (${article.source})`)
   .join("\n")}`);
-    // Sentiment analizi için ikinci bir request yap
     const sentimentPrompt = `
     ${response.choices[0].message.content}`;
 
@@ -389,8 +377,6 @@ async function scrapeArticleContent(url: string) {
     const response = await axios.get(url);
     const $ = cheerio.load(response.data);
 
-    // Her site için farklı HTML yapısı olacağından,
-    // genellikle makale içeriği bulunan elementleri seçiyoruz
     const content = $('article, [class*="article"], [class*="content"]')
       .find("p")
       .map((_, el) => $(el).text())
@@ -404,7 +390,6 @@ async function scrapeArticleContent(url: string) {
   }
 }
 
-// Yeni fonksiyon ekleyelim
 async function extractKeywordsFromTitle(title: string) {
   try {
     const response = await openai.chat.completions.create({
@@ -452,9 +437,7 @@ async function extractKeywordsFromTitle(title: string) {
   }
 }
 
-// Yardımcı fonksiyon ekleyelim
 function cleanTitle(title: string): string {
-  // Expand sources list based on preferredSources
   const sourcesToRemove = [
     " - BBC News",
     " - Wall Street Journal",
@@ -482,7 +465,7 @@ function cleanTitle(title: string): string {
     " | Axios",
     " | Independent",
     " | ProPublica",
-    // Add pipe variants
+
     " | BBC News",
     " | Wall Street Journal",
     " | Forbes",
@@ -521,7 +504,6 @@ function cleanTitle(title: string): string {
 
 export async function GET(request: NextRequest) {
   try {
-    // Son 5 haberi al
     const cachedNews = await prisma.news.findMany({
       orderBy: {
         publishedAt: "desc",
@@ -536,10 +518,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ articles: cachedNews });
     }
 
-    // Yeni verileri getir
     const enrichedArticles = await fetchAndProcessNews();
 
-    // Filter out articles with [Removed] content
     const validArticles = enrichedArticles.filter((article: any) => {
       const isValidMain =
         article.mainArticle.title &&
@@ -553,15 +533,13 @@ export async function GET(request: NextRequest) {
           related.content !== "[Removed]"
       );
 
-      article.relatedArticles = validRelated; // Update related articles with filtered list
+      article.relatedArticles = validRelated;
       return isValidMain;
     });
 
-    // Veritabanına kaydet
     const savedArticles = await Promise.all(
       validArticles.map(async (article: any) => {
         try {
-          // First try to find by URL
           const existingArticles = await prisma.news.findMany({
             where: {
               url: article.mainArticle.url,
@@ -574,7 +552,6 @@ export async function GET(request: NextRequest) {
           const existingArticle = existingArticles[0];
 
           if (existingArticle) {
-            // Update existing article
             return await prisma.news.update({
               where: {
                 id: existingArticle.id,
@@ -607,7 +584,6 @@ export async function GET(request: NextRequest) {
               },
             });
           } else {
-            // Create new article
             return await prisma.news.create({
               data: {
                 title: article.mainArticle.title,

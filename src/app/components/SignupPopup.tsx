@@ -38,17 +38,14 @@ function SignupPopup({ onClose, onSwitchToLogin }: SignupPopupProps) {
         throw new Error(data.error || "Something went wrong");
       }
 
-      // Başarılı kayıt mesajını göster
       setSuccess(
         data.message || "Please check your email to verify your account"
       );
 
-      // Form alanlarını temizle
       setEmail("");
       setPassword("");
       setName("");
 
-      // 5 saniye sonra popup'ı kapat
       setTimeout(() => {
         onClose();
       }, 5000);
@@ -87,7 +84,7 @@ function SignupPopup({ onClose, onSwitchToLogin }: SignupPopupProps) {
           </div>
         )}
 
-        {!success && ( // Başarılı kayıt sonrası formu gizle
+        {!success && (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label
@@ -153,7 +150,7 @@ function SignupPopup({ onClose, onSwitchToLogin }: SignupPopupProps) {
           </form>
         )}
 
-        {!success && ( // Başarılı kayıt sonrası alternative login seçeneklerini gizle
+        {!success && (
           <>
             <div className="mt-4">
               <div className="relative">

@@ -64,7 +64,7 @@ function NewsDetail({ title }: NewsDetailProps) {
           </div>
         </div>
         <div className="w-1/2 space-y-4">
-          {/* Save & Share Buttons */}
+          
           <div className="flex justify-end gap-2 mb-4">
             <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300">
               <svg
