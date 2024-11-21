@@ -25,3 +25,33 @@ body {
     text-wrap: balance;
   }
 }
+
+.stacked-cards-container {
+  position: relative;
+  width: 100%;
+}
+
+.stacked-card {
+  position: relative;
+  width: 100%;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  margin-bottom: -120px;
+  cursor: pointer;
+}
+
+.stacked-cards-container:hover .stacked-card {
+  margin-bottom: 16px;
+  transform: translateY(0) scale(1) !important;
+}
+
+.stacked-card:not(.active) {
+  transform: scale(0.98);
+}
+
+.stacked-card.active {
+  transform: translateY(0) scale(1);
+}

@@ -64,7 +64,6 @@ function NewsDetail({ title }: NewsDetailProps) {
           </div>
         </div>
         <div className="w-1/2 space-y-4">
-          
           <div className="flex justify-end gap-2 mb-4">
             <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300">
               <svg
@@ -198,13 +197,13 @@ function NewsDetail({ title }: NewsDetailProps) {
       {/* Sources Section */}
       <div className="w-full mt-16">
         <h2 className="text-2xl font-bold mb-6">Sources</h2>
-        <div className="space-y-4">
+        <div className="stacked-cards-container">
           {/* Main Article */}
           <a
             href={newsItem.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-shadow"
+            className="stacked-card active"
           >
             <div className="flex">
               <div className="w-[300px] aspect-[16/9] relative">
@@ -215,7 +214,9 @@ function NewsDetail({ title }: NewsDetailProps) {
                 />
               </div>
               <div className="p-4 flex-1">
-                <h3 className="font-bold text-lg mb-2">{newsItem.title}</h3>
+                <h3 className="font-bold text-lg mb-2">
+                  {newsItem.title.split(/\s+[-|]\s+/)[0]}
+                </h3>
                 <div className="flex items-center text-gray-500 text-sm">
                   <span>{newsItem.source}</span>
                   <span className="mx-2">•</span>
@@ -238,49 +239,59 @@ function NewsDetail({ title }: NewsDetailProps) {
             </div>
           </a>
 
-          {/* Related Articles */}
-          {newsItem.relatedArticles?.map((article, index) => (
-            <a
-              key={index}
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex">
-                <div className="w-[300px] aspect-[16/9] relative">
-                  <img
-                    src={article.imageUrl || "/placeholder-image.jpg"}
-                    alt={article.title || article.source}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4 flex-1">
-                  <h3 className="font-bold text-lg mb-2">
-                    {article.title || article.source}
-                  </h3>
-                  <div className="flex items-center text-gray-500 text-sm">
-                    <span>{article.source}</span>
-                    <span className="mx-2">•</span>
-                    <span>
-                      {article.publishedAt
-                        ? new Date(article.publishedAt).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }
-                          )
-                        : "7h ago"}
-                    </span>
+          {/* Related Articles - Filter out articles with same title */}
+          {newsItem.relatedArticles
+            ?.filter(
+              (article) =>
+                article.title?.toLowerCase() !== newsItem.title.toLowerCase() &&
+                !article.title
+                  ?.toLowerCase()
+                  .startsWith(
+                    newsItem.title.split(/\s+[-|]\s+/)[0].toLowerCase()
+                  )
+            )
+            .map((article, index) => (
+              <a
+                key={index}
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="stacked-card"
+              >
+                <div className="flex">
+                  <div className="w-[300px] aspect-[16/9] relative">
+                    <img
+                      src={article.imageUrl || "/placeholder-image.jpg"}
+                      alt={article.title || article.source}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-4 flex-1">
+                    <h3 className="font-bold text-lg mb-2">
+                      {article.title || article.source}
+                    </h3>
+                    <div className="flex items-center text-gray-500 text-sm">
+                      <span>{article.source}</span>
+                      <span className="mx-2">•</span>
+                      <span>
+                        {article.publishedAt
+                          ? new Date(article.publishedAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )
+                          : "7h ago"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </a>
-          ))}
+              </a>
+            ))}
         </div>
       </div>
     </div>
