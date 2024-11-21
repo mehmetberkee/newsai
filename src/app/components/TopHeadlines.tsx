@@ -63,14 +63,14 @@ function TopHeadlines() {
             >
               <div className="md:w-1/2 h-[350px] relative overflow-hidden">
                 <img
-                  src={newsItem.imageUrl || "/news2.png"}
+                  src={newsItem.imageUrl || ""}
                   alt={newsItem.title}
                   className="object-cover rounded-lg hover:scale-105 transition-transform duration-300"
                 />
               </div>
               <div className="flex-1">
                 <h3 className="text-[32px] tracking-[0%] leading-[120%] mb-2 hover:text-purple-600 transition-colors">
-                  {newsItem.title}
+                  {newsItem.title.split(" - ")[0]}
                 </h3>
                 <div className="flex items-center gap-3 mb-2">
                   <span

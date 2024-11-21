@@ -38,7 +38,9 @@ function NewsDetail({ title }: NewsDetailProps) {
 
       <div className="flex gap-20">
         <div className="space-y-4 w-1/2">
-          <h1 className="text-4xl font-bold">{newsItem.title}</h1>
+          <h1 className="text-4xl font-bold">
+            {newsItem.title.split(/\s+[-|]\s+/)[0]}
+          </h1>
           <span className="text-sm text-purple-500 font-bold">
             {newsItem.category}
           </span>
@@ -193,27 +195,67 @@ function NewsDetail({ title }: NewsDetailProps) {
         </div>
       </div>
 
-      {/* Yeni Sources Section */}
+      {/* Sources Section */}
       <div className="w-full mt-16">
         <h2 className="text-2xl font-bold mb-6">Sources</h2>
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-6 min-w-min">
-            {newsItem.relatedArticles?.map((article, index) => (
-              <a
-                key={index}
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-shadow w-[400px] flex-shrink-0"
-              >
-                <div className="aspect-[16/9] relative">
+        <div className="space-y-4">
+          {/* Main Article */}
+          <a
+            href={newsItem.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex">
+              <div className="w-[300px] aspect-[16/9] relative">
+                <img
+                  src={newsItem.imageUrl || "/placeholder-image.jpg"}
+                  alt={newsItem.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="p-4 flex-1">
+                <h3 className="font-bold text-lg mb-2">{newsItem.title}</h3>
+                <div className="flex items-center text-gray-500 text-sm">
+                  <span>{newsItem.source}</span>
+                  <span className="mx-2">•</span>
+                  <span>
+                    {newsItem.publishedAt
+                      ? new Date(newsItem.publishedAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )
+                      : "7h ago"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </a>
+
+          {/* Related Articles */}
+          {newsItem.relatedArticles?.map((article, index) => (
+            <a
+              key={index}
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex">
+                <div className="w-[300px] aspect-[16/9] relative">
                   <img
                     src={article.imageUrl || "/placeholder-image.jpg"}
                     alt={article.title || article.source}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-4">
+                <div className="p-4 flex-1">
                   <h3 className="font-bold text-lg mb-2">
                     {article.title || article.source}
                   </h3>
@@ -236,9 +278,9 @@ function NewsDetail({ title }: NewsDetailProps) {
                     </span>
                   </div>
                 </div>
-              </a>
-            ))}
-          </div>
+              </div>
+            </a>
+          ))}
         </div>
       </div>
     </div>

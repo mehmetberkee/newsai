@@ -129,15 +129,22 @@ async function fetchAndProcessNews() {
       headlinesResponse = await axios.get(fallbackUrl);
     }
 
+    const getOneWeekAgo = () => {
+      const date = new Date();
+      date.setDate(date.getDate() - 7);
+      return date.toISOString().split("T")[0];
+    };
+
     const topArticles = await Promise.all(
       headlinesResponse.data.articles.slice(0, 10).map(async (article: any) => {
-        // Her makale için related article sayısını hesapla
         const keywords = await extractKeywordsFromTitle(article.title);
         const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
           keywords
         )}&language=en&sources=${preferredSources}&excludeDomains=${
           article.source.name
-        }&sortBy=relevancy&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
+        }&from=${getOneWeekAgo()}&sortBy=relevancy&pageSize=5&apiKey=${
+          process.env.NEWSAPI_KEY
+        }`;
 
         const relatedResponse = await axios.get(relatedUrl);
         return {
@@ -168,7 +175,9 @@ async function fetchAndProcessNews() {
               keywords
             )}&language=en&sources=${preferredSources}&excludeDomains=${
               mainArticle.source.name
-            }&sortBy=relevancy&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
+            }&from=${getOneWeekAgo()}&sortBy=relevancy&pageSize=5&apiKey=${
+              process.env.NEWSAPI_KEY
+            }`;
 
             const relatedResponse = await axios.get(relatedUrl);
             const relatedArticles = relatedResponse.data.articles;
@@ -181,7 +190,7 @@ async function fetchAndProcessNews() {
 
             return {
               mainArticle: {
-                title: mainArticle.title,
+                title: cleanTitle(mainArticle.title),
                 description: mainArticle.description,
                 content: mainArticle.content,
                 url: mainArticle.url || `${Date.now()}`,
@@ -441,6 +450,73 @@ async function extractKeywordsFromTitle(title: string) {
     console.error("Error extracting keywords:", error);
     return title.split(" ").slice(0, 3).join(" ");
   }
+}
+
+// Yardımcı fonksiyon ekleyelim
+function cleanTitle(title: string): string {
+  // Expand sources list based on preferredSources
+  const sourcesToRemove = [
+    " - BBC News",
+    " - Wall Street Journal",
+    " - Forbes",
+    " - ABC News",
+    " - Reuters",
+    " - Associated Press",
+    " - CBS News",
+    " - Time",
+    " | ESPN",
+    " | CNN",
+    " | NBC News",
+    " | The New York Times",
+    " | The Washington Post",
+    " | USA Today",
+    " | Financial Times",
+    " | Business Insider",
+    " | Newsweek",
+    " | The Guardian",
+    " | The Economist",
+    " | Bloomberg",
+    " | Politico",
+    " | Fox News",
+    " | MSNBC",
+    " | Axios",
+    " | Independent",
+    " | ProPublica",
+    // Add pipe variants
+    " | BBC News",
+    " | Wall Street Journal",
+    " | Forbes",
+    " | ABC News",
+    " | Reuters",
+    " | Associated Press",
+    " | CBS News",
+    " | Time",
+    " | ESPN",
+    " | CNN",
+    " | NBC News",
+    " | The New York Times",
+    " | The Washington Post",
+    " | USA Today",
+    " | Financial Times",
+    " | Business Insider",
+    " | Newsweek",
+    " | The Guardian",
+    " | The Economist",
+    " | Bloomberg",
+    " | Politico",
+    " | Fox News",
+    " | MSNBC",
+    " | Axios",
+    " | Independent",
+    " | ProPublica",
+  ];
+
+  let cleanedTitle = title;
+  sourcesToRemove.forEach((source) => {
+    cleanedTitle = cleanedTitle.replace(source, "");
+  });
+
+  return cleanedTitle.trim();
 }
 
 export async function GET(request: NextRequest) {
