@@ -25,16 +25,36 @@ function TopHeadlines() {
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      World: "bg-blue-500",
-      Business: "bg-green-500",
-      Technology: "bg-purple-500",
-      Science: "bg-indigo-500",
-      Health: "bg-red-500",
+      US: "bg-blue-600",
+      World: "bg-emerald-600",
+      Business: "bg-purple-600",
+      Technology: "bg-cyan-600",
+      Science: "bg-indigo-600",
+      Health: "bg-rose-600",
       Sports: "bg-orange-500",
-      Lifestyle: "bg-pink-500",
+      Lifestyle: "bg-amber-500",
     } as const;
 
-    return colors[category as keyof typeof colors] || "bg-gray-500";
+    return colors[category as keyof typeof colors] || "bg-slate-500";
+  };
+
+  const getSourceIcon = (source: string) => {
+    const sourceIcons: { [key: string]: string } = {
+      "ABC News": "/icons/abc.png",
+      "BBC News": "/icons/bbcnews.png",
+      "Business Insider": "/icons/businessinsider.png",
+      CNN: "/icons/cnn.png",
+      ESPN: "/icons/espn.png",
+      "Financial Times": "/icons/financialtimes.png",
+      "Fox News": "/icons/foxnews.png",
+      "NBC News": "/icons/nbcnews.png",
+      Newsweek: "/icons/newsweek.png",
+      "The New York Times": "/icons/newyorktimes.png",
+      Time: "/icons/time.png",
+      "USA Today": "/icons/usatoday.png",
+    };
+
+    return sourceIcons[source] || null;
   };
 
   return (
@@ -80,7 +100,7 @@ function TopHeadlines() {
                     px-3 
                     py-1 
                     rounded-full 
-                    text-sm 
+                    text-md 
                     font-medium
                     tracking-wide
                   `}
@@ -91,7 +111,7 @@ function TopHeadlines() {
                 <p className="text-[16px] tracking-[0%] leading-[140%] text-[#1E1E1E] mt-7 mb-4">
                   {newsItem.description}
                 </p>
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-500 text-sm flex items-center gap-2">
                   Sources:{" "}
                   {Array.from(
                     new Set([
@@ -100,7 +120,21 @@ function TopHeadlines() {
                         (article) => article.source
                       ) || []),
                     ])
-                  ).join(", ")}
+                  ).map((source, idx, arr) => (
+                    <span key={source} className="flex items-center">
+                      {getSourceIcon(source) && (
+                        <Image
+                          src={getSourceIcon(source)!}
+                          alt={`${source} icon`}
+                          width={16}
+                          height={16}
+                          className="inline-block mr-1"
+                        />
+                      )}
+                      {source}
+                      {idx < arr.length - 1 ? ", " : ""}
+                    </span>
+                  ))}
                 </p>
               </div>
             </div>

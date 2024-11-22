@@ -12,6 +12,25 @@ interface NewsDetailProps {
 function NewsDetail({ title }: NewsDetailProps) {
   const { news, loading, error } = useNews();
 
+  const getSourceIcon = (source: string) => {
+    const sourceIcons: { [key: string]: string } = {
+      "ABC News": "/icons/abc.png",
+      "BBC News": "/icons/bbcnews.png",
+      "Business Insider": "/icons/businessinsider.png",
+      CNN: "/icons/cnn.png",
+      ESPN: "/icons/espn.png",
+      "Financial Times": "/icons/financialtimes.png",
+      "Fox News": "/icons/foxnews.png",
+      "NBC News": "/icons/nbcnews.png",
+      Newsweek: "/icons/newsweek.png",
+      "The New York Times": "/icons/newyorktimes.png",
+      Time: "/icons/time.png",
+      "USA Today": "/icons/usatoday.png",
+    };
+
+    return sourceIcons[source] || null;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -218,7 +237,18 @@ function NewsDetail({ title }: NewsDetailProps) {
                   {newsItem.title.split(/\s+[-|]\s+/)[0]}
                 </h3>
                 <div className="flex items-center text-gray-500 text-sm">
-                  <span>{newsItem.source}</span>
+                  <span className="flex items-center">
+                    {getSourceIcon(newsItem.source) && (
+                      <Image
+                        src={getSourceIcon(newsItem.source)!}
+                        alt={`${newsItem.source} icon`}
+                        width={16}
+                        height={16}
+                        className="inline-block mr-1"
+                      />
+                    )}
+                    {newsItem.source}
+                  </span>
                   <span className="mx-2">•</span>
                   <span>
                     {newsItem.publishedAt
@@ -271,7 +301,18 @@ function NewsDetail({ title }: NewsDetailProps) {
                       {article.title || article.source}
                     </h3>
                     <div className="flex items-center text-gray-500 text-sm">
-                      <span>{article.source}</span>
+                      <span className="flex items-center">
+                        {getSourceIcon(article.source) && (
+                          <Image
+                            src={getSourceIcon(article.source)!}
+                            alt={`${article.source} icon`}
+                            width={16}
+                            height={16}
+                            className="inline-block mr-1"
+                          />
+                        )}
+                        {article.source}
+                      </span>
                       <span className="mx-2">•</span>
                       <span>
                         {article.publishedAt

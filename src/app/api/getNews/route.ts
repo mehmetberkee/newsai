@@ -10,14 +10,14 @@ const openai = new OpenAI({
 
 const CATEGORIES = [
   "US",
-  "WORLD",
-  "BUSINESS",
-  "TECHNOLOGY",
-  "SCIENCE",
-  "HEALTH",
-  "SPORTS",
-  "LIFESTYLE",
-  "TRAVEL",
+  "World",
+  "Business",
+  "Technology",
+  "Science",
+  "Health",
+  "Sports",
+  "Lifestyle",
+  "Travel",
 ];
 
 async function fetchAndProcessNews() {
@@ -83,7 +83,7 @@ async function fetchAndProcessNews() {
     // Debug log
     console.log(
       "Fetched articles with images:",
-      allArticles.map((a) => ({
+      allArticles.map((a: any) => ({
         title: a.title,
         hasImage: !!a.urlToImage,
       }))
@@ -108,13 +108,11 @@ async function fetchAndProcessNews() {
       })
     );
 
-    // Debug log for topArticles
     console.log(
       "Top articles categories:",
       topArticles.map((a) => a.category)
     );
 
-    // No need for AI categorization since we're using NewsAPI categories
     const selectedArticles = topArticles;
 
     const enrichedArticles = (
@@ -230,8 +228,11 @@ async function generateComprehensiveAnalysis(
       max_tokens: 10,
     });
 
-    const category =
-      categoryResponse.choices[0].message.content?.trim() || "US";
+    const category = categoryResponse.choices[0].message.content
+      ?.trim()
+      .split(" ")[0]
+      .replace(/^\w/, (c) => c.toUpperCase())
+      .replace(/^US$/i, "US");
 
     // Sonra analiz yap
     const analysisPrompt = `
