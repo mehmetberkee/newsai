@@ -69,18 +69,24 @@ async function fetchAndProcessNews() {
     };
 
     // Sadece general kategorisinden 5 haber al
-    const url = `https://newsapi.org/v2/top-headlines?country=us&category=general&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
+    const url = `https://newsapi.org/v2/top-headlines?country=us&category=general&pageSize=7&apiKey=${process.env.NEWSAPI_KEY}`;
     console.log("Fetching general news...");
     const response = await axios.get(url);
 
-    const allArticles = response.data.articles.map((article: any) => ({
-      ...article,
-    }));
+    const allArticles = response.data.articles
+      .filter((article: any) => article.urlToImage)
+      .map((article: any) => ({
+        ...article,
+      }))
+      .slice(0, 5);
 
     // Debug log
     console.log(
-      "Fetched articles:",
-      allArticles.map((a) => a.title)
+      "Fetched articles with images:",
+      allArticles.map((a) => ({
+        title: a.title,
+        hasImage: !!a.urlToImage,
+      }))
     );
 
     const topArticles = await Promise.all(
@@ -218,7 +224,7 @@ async function generateComprehensiveAnalysis(
     Return ONLY the category name, nothing else.`;
 
     const categoryResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [{ role: "user", content: categoryPrompt }],
       temperature: 0.3,
       max_tokens: 10,
@@ -276,7 +282,7 @@ async function generateComprehensiveAnalysis(
     - End with a constructive or forward-looking perspective`;
 
     const analysisResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [{ role: "user", content: analysisPrompt }],
       max_tokens: 4000,
       temperature: 0.7,
@@ -285,7 +291,7 @@ async function generateComprehensiveAnalysis(
     // Duygu analizi yap
     const sentimentPrompt = `${analysisResponse.choices[0].message.content}`;
     const sentimentResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -364,7 +370,7 @@ async function scrapeArticleContent(url: string) {
 async function extractKeywordsFromTitle(title: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
@@ -496,7 +502,7 @@ Guidelines:
 Return only the new title, nothing else.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
       max_tokens: 100,
