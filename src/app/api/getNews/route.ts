@@ -8,79 +8,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-async function selectTopBreakingNews(articles: any[]) {
-  try {
-    const prompt = `Analyze these news articles and:
-1. Select the 5 most important breaking news stories based on:
-   - Immediacy and timeliness
-   - Global/national impact
-   - Public interest
-   - Significance of developments
-   - Number of related articles available (prefer stories with more coverage)
-2. Categorize each selected article into ONE of these categories:
-   - World
-   - Business
-   - Technology
-   - Science
-   - Health
-   - Sports
-   - Lifestyle
-
-Return a JSON object with an "articles" array containing 5 objects with:
-- index: original position in the input array (0-9)
-- category: selected category
-
-Example response:
-{
-  "articles": [
-    {"index": 2, "category": "World"},
-    {"index": 5, "category": "Technology"},
-    {"index": 0, "category": "Health"},
-    {"index": 8, "category": "Business"},
-    {"index": 4, "category": "Sports"}
-  ]
-}
-
-Input articles with related coverage count:
-${articles
-  .map(
-    (article, idx) => `
-${idx}. ${article.title}
-Description: ${article.description || "N/A"}
-Related Coverage Count: ${article.relatedArticlesCount || 0} articles`
-  )
-  .join("\n")}`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
-    });
-
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-
-    if (!result.articles || !Array.isArray(result.articles)) {
-      console.error("Invalid response format from AI:", result);
-      return {
-        articles: Array.from({ length: 5 }, (_, i) => ({
-          index: i,
-          category: "World",
-        })),
-      };
-    }
-
-    return result;
-  } catch (error) {
-    console.error("Error selecting top breaking news:", error);
-    return {
-      articles: Array.from({ length: 5 }, (_, i) => ({
-        index: i,
-        category: "World",
-      })),
-    };
-  }
-}
+const CATEGORIES = [
+  "US",
+  "WORLD",
+  "BUSINESS",
+  "TECHNOLOGY",
+  "SCIENCE",
+  "HEALTH",
+  "SPORTS",
+  "LIFESTYLE",
+  "TRAVEL",
+];
 
 async function fetchAndProcessNews() {
   try {
@@ -130,8 +68,23 @@ async function fetchAndProcessNews() {
       return date.toISOString().split("T")[0];
     };
 
+    // Sadece general kategorisinden 5 haber al
+    const url = `https://newsapi.org/v2/top-headlines?country=us&category=general&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
+    console.log("Fetching general news...");
+    const response = await axios.get(url);
+
+    const allArticles = response.data.articles.map((article: any) => ({
+      ...article,
+    }));
+
+    // Debug log
+    console.log(
+      "Fetched articles:",
+      allArticles.map((a) => a.title)
+    );
+
     const topArticles = await Promise.all(
-      headlinesResponse.data.articles.slice(0, 10).map(async (article: any) => {
+      allArticles.map(async (article: any) => {
         const keywords = await extractKeywordsFromTitle(article.title);
         const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
           keywords
@@ -149,12 +102,14 @@ async function fetchAndProcessNews() {
       })
     );
 
-    const selectedNews = await selectTopBreakingNews(topArticles);
+    // Debug log for topArticles
+    console.log(
+      "Top articles categories:",
+      topArticles.map((a) => a.category)
+    );
 
-    const selectedArticles = selectedNews.articles.map((selection: any) => ({
-      ...topArticles[selection.index],
-      category: selection.category,
-    }));
+    // No need for AI categorization since we're using NewsAPI categories
+    const selectedArticles = topArticles;
 
     const enrichedArticles = (
       await Promise.allSettled(
@@ -178,9 +133,11 @@ async function fetchAndProcessNews() {
               relatedArticles
             );
 
+            const improvedTitle = await generateImprovedTitle(mainArticle);
+
             return {
               mainArticle: {
-                title: cleanTitle(mainArticle.title),
+                title: cleanTitle(improvedTitle),
                 description: mainArticle.description,
                 content: mainArticle.content,
                 url: mainArticle.url || `${Date.now()}`,
@@ -188,18 +145,25 @@ async function fetchAndProcessNews() {
                 publishedAt: new Date(mainArticle.publishedAt),
                 source: mainArticle.source.name,
                 category: mainArticle.category,
+                originalTitle: cleanTitle(mainArticle.title),
               },
               relatedArticles: await Promise.all(
                 relatedArticles.map(async (article: any) => {
                   const fullContent = await scrapeArticleContent(article.url);
+                  const improvedRelatedTitle = await generateImprovedTitle({
+                    ...article,
+                    content: fullContent,
+                  });
+
                   return {
-                    title: article.title,
+                    title: cleanTitle(improvedRelatedTitle),
                     source: article.source.name,
                     url: article.url || `${Date.now()}`,
                     publishedAt: new Date(article.publishedAt),
                     content: fullContent || article.content,
                     description: article.description,
                     imageUrl: article.urlToImage,
+                    originalTitle: cleanTitle(article.title),
                   };
                 })
               ),
@@ -241,116 +205,122 @@ async function generateComprehensiveAnalysis(
       }))
     );
 
-    const prompt = `
+    // Önce kategori belirle
+    const categoryPrompt = `
+    Given this news article information, categorize it into ONE of these categories: ${CATEGORIES.join(
+      ", "
+    )}
+
+    Title: ${mainArticle.title}
+    Description: ${mainArticle.description || ""}
+    Content: ${mainArticle.content || ""}
+
+    Return ONLY the category name, nothing else.`;
+
+    const categoryResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: categoryPrompt }],
+      temperature: 0.3,
+      max_tokens: 10,
+    });
+
+    const category =
+      categoryResponse.choices[0].message.content?.trim() || "US";
+
+    // Sonra analiz yap
+    const analysisPrompt = `
     Main Article Analysis Request:
 
-Title: ${mainArticle.title}
-Content: ${mainArticle.content || mainArticle.description}
+    Title: ${mainArticle.title}
+    Content: ${mainArticle.content || mainArticle.description}
+    Category: ${category}
 
+    Related Coverage:
+    ${relatedArticlesWithContent
+      .map(
+        (article) => `
+    - ${article.title} (${article.source})
+      Content: ${article.fullContent || article.content || article.description}`
+      )
+      .join("\n")}
 
-Related Coverage:
-${relatedArticlesWithContent
-  .map(
-    (article) => `
-- ${article.title} (${article.source})
-  Content: ${article.fullContent || article.content || article.description}`
-  )
-  .join("\n")}
+    Please provide a comprehensive news analysis addressing the following elements:
 
-Please provide a comprehensive news analysis addressing the following elements:
+    1. Summary (2-3 paragraphs, max 20 sentences):
+       - Who, What, When, Where, Why, and How with specific details
+       - Include relevant numbers, proper nouns, and concrete examples
+       - Historical context and background information
 
-1. Summary (2-3 paragraphs, max 20 sentences):
-   - Who, What, When, Where, Why, and How with specific details
-   - Include relevant numbers, proper nouns, and concrete examples
-   - Historical context and background information
+    2. Multiple Perspectives:
+       - Present diverse viewpoints from different news sources
+       - Highlight any contrasting opinions or interpretations
+       - Include expert opinions when available
 
-2. Multiple Perspectives:
-   - Present diverse viewpoints from different news sources
-   - Highlight any contrasting opinions or interpretations
-   - Include expert opinions when available
+    3. Impact Analysis:
+       - Immediate effects
+       - Potential long-term consequences
+       - Who is affected and how
 
-3. Impact Analysis:
-   - Immediate effects
-   - Potential long-term consequences
-   - Who is affected and how
+    4. Supporting Context:
+       - Related historical events
+       - Previous developments
+       - Relevant statistics or data
 
-4. Supporting Context:
-   - Related historical events
-   - Previous developments
-   - Relevant statistics or data
+    Writing Guidelines:
+    - Maintain warm, accessible language while adhering to journalistic standards
+    - Ensure objectivity and neutrality
+    - Avoid sensationalism and emotional manipulation
+    - Use clear, concise language
+    - Include verified information only
+    - Acknowledge any limitations in available information
+    - End with a constructive or forward-looking perspective`;
 
-Writing Guidelines:
-- Maintain warm, accessible language while adhering to journalistic standards
-- Ensure objectivity and neutrality
-- Avoid sensationalism and emotional manipulation
-- Use clear, concise language
-- Include verified information only
-- Acknowledge any limitations in available information
-- End with a constructive or forward-looking perspective
-
-Please write in a professional journalistic style that balances accessibility with authority, as if explaining to a well-informed friend.`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
+    const analysisResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: analysisPrompt }],
       max_tokens: 4000,
       temperature: 0.7,
     });
-    console.log(`Title: ${mainArticle.title}
-Content: ${mainArticle.content || mainArticle.description}
 
-Related Coverage:
-${relatedArticles
-  .map((article) => `- ${article.title} (${article.source})`)
-  .join("\n")}`);
-    const sentimentPrompt = `
-    ${response.choices[0].message.content}`;
-
+    // Duygu analizi yap
+    const sentimentPrompt = `${analysisResponse.choices[0].message.content}`;
     const sentimentResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content: `Given a news article, analyze its sentiment and provide a percentage breakdown with careful consideration of specific content markers:
 
-NEGATIVE markers (weight heavily):
-- Deaths, accidents, disasters
-- Violence, crime, conflict
-- Economic losses, bankruptcies
-- Environmental damage
-- Social problems, discrimination
-- Health crises, illnesses
+          NEGATIVE markers (weight heavily):
+          - Deaths, accidents, disasters
+          - Violence, crime, conflict
+          - Economic losses, bankruptcies
+          - Environmental damage
+          - Social problems, discrimination
+          - Health crises, illnesses
 
-POSITIVE markers (weight heavily):
-- Achievements, successes, victories
-- Scientific/medical breakthroughs
-- Economic growth, job creation
-- Environmental improvements
-- Social progress, unity
-- Health improvements, recoveries
-- Aid, rescue, support actions
+          POSITIVE markers (weight heavily):
+          - Achievements, successes, victories
+          - Scientific/medical breakthroughs
+          - Economic growth, job creation
+          - Environmental improvements
+          - Social progress, unity
+          - Health improvements, recoveries
+          - Aid, rescue, support actions
 
-NEUTRAL markers:
-- Factual statements
-- Statistical reports
-- Procedural updates
-- Policy announcements
-- General information
+          NEUTRAL markers:
+          - Factual statements
+          - Statistical reports
+          - Procedural updates
+          - Policy announcements
+          - General information
 
-Return ONLY a JSON object with three percentage values that sum to 100:
-{
-  "positive": N,
-  "neutral": N,
-  "negative": N
-}
-
-Guidelines:
-- Death/tragedy content should heavily influence negative scoring (at least 60% negative)
-- Major positive developments should score at least 50% positive
-- Multiple deaths/injuries should increase negative percentage substantially
-- Rescue/recovery efforts in negative situations should add some positive weight
-- Pure informational content should weight toward neutral
-- Consider both explicit and implicit sentiment indicators`,
+          Return ONLY a JSON object with three percentage values that sum to 100:
+          {
+            "positive": N,
+            "neutral": N,
+            "negative": N
+          }`,
         },
         { role: "user", content: sentimentPrompt },
       ],
@@ -363,8 +333,9 @@ Guidelines:
       JSON.parse(sentimentResponse.choices[0].message.content || "{}") || {};
 
     return {
-      analysis: response.choices[0].message.content?.trim(),
+      analysis: analysisResponse.choices[0].message.content?.trim(),
       sentiment: sentimentAnalysis,
+      category: category, // Yeni kategori bilgisini ekle
     };
   } catch (error) {
     console.error("Error generating analysis:", error);
@@ -393,7 +364,7 @@ async function scrapeArticleContent(url: string) {
 async function extractKeywordsFromTitle(title: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -502,6 +473,47 @@ function cleanTitle(title: string): string {
   return cleanedTitle.trim();
 }
 
+async function generateImprovedTitle(article: any) {
+  try {
+    const prompt = `Given this news article information, create a clear, engaging, and informative title.
+
+Original Title: ${article.title}
+Description: ${article.description || "N/A"}
+Content: ${article.content || "N/A"}
+Category: ${article.category}
+
+Guidelines:
+- Keep it under 100 characters
+- Be accurate and factual
+- Include key information
+- Avoid clickbait
+- Maintain journalistic standards
+- If it's breaking news, indicate that
+- For numbers/statistics, use specific figures
+- Include location if relevant
+- Do not include quotation marks in the title
+
+Return only the new title, nothing else.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 100,
+    });
+
+    const title = response.choices[0].message.content?.trim() || article.title;
+    return title.replace(/['"]+/g, "");
+  } catch (error) {
+    console.error("Error generating improved title:", error);
+    return article.title;
+  }
+}
+
+function capitalizeFirstLetter(string: string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const cachedNews = await prisma.news.findMany({
@@ -564,7 +576,7 @@ export async function GET(request: NextRequest) {
                 publishedAt: article.mainArticle.publishedAt,
                 source: article.mainArticle.source,
                 analysis: article.analysis.analysis,
-                category: article.mainArticle.category,
+                category: article.analysis.category,
                 sentiment: article.analysis.sentiment,
                 relatedArticles: {
                   deleteMany: {},
@@ -591,7 +603,7 @@ export async function GET(request: NextRequest) {
                 content: article.mainArticle.content,
                 url: article.mainArticle.url,
                 imageUrl: article.mainArticle.imageUrl,
-                category: article.mainArticle.category,
+                category: article.analysis.category,
                 publishedAt: article.mainArticle.publishedAt,
                 source: article.mainArticle.source,
                 analysis: article.analysis.analysis,
@@ -621,7 +633,7 @@ export async function GET(request: NextRequest) {
           return null;
         }
       })
-    ).then((articles) => articles.filter((article) => article !== null));
+    );
 
     const filteredSavedArticles = savedArticles.filter(
       (article) => article !== null

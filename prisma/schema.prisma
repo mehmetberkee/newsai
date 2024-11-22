@@ -43,6 +43,7 @@ model Session {
 model News {
   id              String    @id @default(cuid())
   title           String
+  originalTitle   String?
   description     String?   @db.Text
   content         String?   @db.Text
   url             String   @unique
@@ -62,6 +63,7 @@ model News {
 model RelatedArticle {
   id          String   @id @default(cuid())
   title       String
+  originalTitle String?
   source      String
   url         String
   publishedAt DateTime
