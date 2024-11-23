@@ -7,6 +7,24 @@ function TopHeadlines() {
   const router = useRouter();
   const { news, loading, error } = useNews();
 
+  const getCategoryPriority = (category: string) => {
+    const priorities = {
+      US: 0,
+      World: 1,
+      Business: 2,
+      Technology: 3,
+      Science: 4,
+      Health: 5,
+      Sports: 6,
+      Lifestyle: 7,
+    };
+    return priorities[category as keyof typeof priorities] ?? 999;
+  };
+
+  const sortedNews = [...news].sort(
+    (a, b) => getCategoryPriority(a.category) - getCategoryPriority(b.category)
+  );
+
   const loadingAnimation = function () {
     return (
       <div className="flex flex-col items-center justify-center">
@@ -75,7 +93,7 @@ function TopHeadlines() {
         loadingAnimation()
       ) : (
         <div className="space-y-8">
-          {news.map((newsItem, index) => (
+          {sortedNews.map((newsItem, index) => (
             <div
               key={index}
               className="flex flex-col md:flex-row gap-6 cursor-pointer hover:bg-gray-50 p-4 rounded-lg transition-colors shadow-sm hover:shadow-md"

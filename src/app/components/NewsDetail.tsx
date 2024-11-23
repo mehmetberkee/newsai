@@ -17,15 +17,18 @@ function NewsDetail({ title }: NewsDetailProps) {
       "ABC News": "/icons/abc.png",
       "BBC News": "/icons/bbcnews.png",
       "Business Insider": "/icons/businessinsider.png",
+      "CBS News": "/icons/cbsnews.png",
       CNN: "/icons/cnn.png",
       ESPN: "/icons/espn.png",
       "Financial Times": "/icons/financialtimes.png",
+      Fortune: "/icons/fortune.png",
       "Fox News": "/icons/foxnews.png",
       "NBC News": "/icons/nbcnews.png",
       Newsweek: "/icons/newsweek.png",
       "The New York Times": "/icons/newyorktimes.png",
       Time: "/icons/time.png",
       "USA Today": "/icons/usatoday.png",
+      MSNBC: "/icons/MSNBC.png",
     };
 
     return sourceIcons[source] || null;
@@ -47,11 +50,11 @@ function NewsDetail({ title }: NewsDetailProps) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="w-full h-[400px] relative rounded-xl overflow-hidden mb-8">
+      <div className="w-full h-[450px] relative rounded-xl overflow-hidden mb-8">
         <img
           src={newsItem.imageUrl || "/placeholder-image.jpg"}
           alt={newsItem.title}
-          className="object-cover mx-auto"
+          className="object-cover object-center w-full h-full"
         />
       </div>
 
@@ -60,7 +63,7 @@ function NewsDetail({ title }: NewsDetailProps) {
           <h1 className="text-4xl font-bold">
             {newsItem.title.split(/\s+[-|]\s+/)[0]}
           </h1>
-          <span className="text-sm text-purple-500 font-bold">
+          <span className="text-xl mt-4 text-purple-500 font-bold">
             {newsItem.category}
           </span>
           <p className="text-gray-700 text-lg">{newsItem.description}</p>
@@ -68,18 +71,6 @@ function NewsDetail({ title }: NewsDetailProps) {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {newsItem.analysis}
             </ReactMarkdown>
-          </div>
-
-          <div className="flex items-center gap-4 mt-8">
-            <a
-              href={newsItem.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-lg bg-purple-500 text-white"
-            >
-              Go to the article
-            </a>
-            <button className="px-4 py-2 rounded-lg bg-gray-100">Share</button>
           </div>
         </div>
         <div className="w-1/2 space-y-4">

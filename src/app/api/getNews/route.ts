@@ -280,7 +280,8 @@ async function generateComprehensiveAnalysis(
     - Use clear, concise language
     - Include verified information only
     - Acknowledge any limitations in available information
-    - End with a constructive or forward-looking perspective`;
+    - End with a constructive, positive, or forward-looking perspective if possible
+    `;
 
     const analysisResponse = await openai.chat.completions.create({
       model: "gpt-4o",
