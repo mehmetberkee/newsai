@@ -53,7 +53,6 @@ async function fetchAndProcessNews() {
 
     const topHeadlinesUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
 
-    // Fallback to US news if no results from preferred sources
     const fallbackUrl = `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
 
     let headlinesResponse = await axios.get(topHeadlinesUrl);
@@ -68,8 +67,7 @@ async function fetchAndProcessNews() {
       return date.toISOString().split("T")[0];
     };
 
-    // Sadece general kategorisinden 5 haber al
-    const url = `https://newsapi.org/v2/top-headlines?country=us&category=general&pageSize=7&apiKey=${process.env.NEWSAPI_KEY}`;
+    const url = `https://newsapi.org/v2/top-headlines?country=us&category=general&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
     console.log("Fetching general news...");
     const response = await axios.get(url);
 
@@ -78,19 +76,54 @@ async function fetchAndProcessNews() {
       .map((article: any) => ({
         ...article,
       }))
+      .slice(0, 10);
+
+    const rankingPrompt = `
+    Please analyze these news articles and rank the top 5 most important ones based on:
+    1. Global/national impact
+    2. Timeliness
+    3. Public interest
+    4. Long-term significance
+    
+    Articles:
+    ${allArticles
+      .map(
+        (article: any, index: number) => `
+    ${index + 1}. Title: ${article.title}
+       Description: ${article.description || "N/A"}
+       Content: ${article.content || "N/A"}`
+      )
+      .join("\n")}
+
+    Return only the numbers of the top 5 articles in order of importance, comma-separated (e.g., "3,1,7,4,2").`;
+
+    const rankingResponse = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: rankingPrompt }],
+      temperature: 0.3,
+      max_tokens: 50,
+    });
+
+    const topIndices = rankingResponse.choices[0].message.content
+      ?.split(",")
+      .map((num) => parseInt(num.trim()) - 1)
+      .filter((index) => index >= 0 && index < allArticles.length)
       .slice(0, 5);
+
+    const selectedArticles =
+      topIndices?.map((index) => allArticles[index]) || allArticles.slice(0, 5);
 
     // Debug log
     console.log(
       "Fetched articles with images:",
-      allArticles.map((a: any) => ({
+      selectedArticles.map((a: any) => ({
         title: a.title,
         hasImage: !!a.urlToImage,
       }))
     );
 
     const topArticles = await Promise.all(
-      allArticles.map(async (article: any) => {
+      selectedArticles.map(async (article: any) => {
         const keywords = await extractKeywordsFromTitle(article.title);
         const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
           keywords
@@ -113,11 +146,9 @@ async function fetchAndProcessNews() {
       topArticles.map((a) => a.category)
     );
 
-    const selectedArticles = topArticles;
-
     const enrichedArticles = (
       await Promise.allSettled(
-        selectedArticles.map(async (mainArticle: any) => {
+        topArticles.map(async (mainArticle: any) => {
           try {
             const keywords = await extractKeywordsFromTitle(mainArticle.title);
             console.log("keywords:", keywords);
