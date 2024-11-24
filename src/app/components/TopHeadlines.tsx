@@ -76,8 +76,8 @@ function TopHeadlines() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-12">
-      <h1 className="text-5xl text-center mb-2">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-6 sm:py-12">
+      <h1 className="text-3xl sm:text-5xl text-center mb-2">
         Today is{" "}
         {new Date().toLocaleDateString("en-US", {
           month: "long",
@@ -85,40 +85,40 @@ function TopHeadlines() {
           year: "numeric",
         })}
       </h1>
-      <h2 className="text-2xl text-gray-600 text-center mb-12">
+      <h2 className="text-xl sm:text-2xl text-gray-600 text-center mb-6 sm:mb-12">
         Breaking News Headlines
       </h2>
 
       {loading ? (
         loadingAnimation()
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {sortedNews.map((newsItem, index) => (
             <div
               key={index}
-              className="flex flex-col md:flex-row gap-6 cursor-pointer hover:bg-gray-50 p-4 rounded-lg transition-colors shadow-sm hover:shadow-md"
+              className="flex flex-col md:flex-row gap-4 sm:gap-6 cursor-pointer hover:bg-gray-50 p-3 sm:p-4 rounded-lg transition-colors shadow-sm hover:shadow-md"
               onClick={() => handleNewsClick(newsItem)}
             >
-              <div className="md:w-1/2 h-[350px] relative overflow-hidden">
+              <div className="w-full md:w-1/2 h-[200px] sm:h-[350px] relative overflow-hidden">
                 <img
                   src={newsItem.imageUrl || ""}
                   alt={newsItem.title}
-                  className="object-cover rounded-lg hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover rounded-lg hover:scale-105 transition-transform duration-300"
                 />
               </div>
               <div className="flex-1">
-                <h3 className="text-[32px] tracking-[0%] leading-[120%] mb-2 hover:text-purple-600 transition-colors">
+                <h3 className="text-2xl sm:text-[32px] tracking-[0%] leading-[120%] mb-2 hover:text-purple-600 transition-colors">
                   {newsItem.title.split(" - ")[0]}
                 </h3>
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
                   <span
                     className={`
                     ${getCategoryColor(newsItem.category)}
                     text-white 
-                    px-3 
+                    px-2 sm:px-3 
                     py-1 
                     rounded-full 
-                    text-md 
+                    text-sm sm:text-md 
                     font-medium
                     tracking-wide
                   `}
@@ -126,10 +126,10 @@ function TopHeadlines() {
                     {newsItem.category}
                   </span>
                 </div>
-                <p className="text-[16px] tracking-[0%] leading-[140%] text-[#1E1E1E] mt-7 mb-4">
+                <p className="text-[14px] sm:text-[16px] tracking-[0%] leading-[140%] text-[#1E1E1E] mt-4 sm:mt-7 mb-3 sm:mb-4">
                   {newsItem.description}
                 </p>
-                <p className="text-gray-500 text-sm flex items-center gap-2">
+                <p className="text-gray-500 text-xs sm:text-sm flex flex-wrap items-center gap-2">
                   Sources:{" "}
                   {Array.from(
                     new Set([

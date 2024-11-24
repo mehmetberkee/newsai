@@ -49,8 +49,8 @@ function NewsDetail({ title }: NewsDetailProps) {
   if (!newsItem) return <div>News not found</div>;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="w-full h-[450px] relative rounded-xl overflow-hidden mb-8">
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 py-6 sm:py-12">
+      <div className="w-full h-[250px] sm:h-[450px] relative rounded-xl overflow-hidden mb-4 sm:mb-8">
         <img
           src={newsItem.imageUrl || "/placeholder-image.jpg"}
           alt={newsItem.title}
@@ -58,26 +58,32 @@ function NewsDetail({ title }: NewsDetailProps) {
         />
       </div>
 
-      <div className="flex gap-20">
-        <div className="space-y-4 w-1/2">
-          <h1 className="text-4xl font-bold">
+      <div className="flex flex-col lg:flex-row lg:gap-20">
+        {/* Sol Taraf - Ana İçerik */}
+        <div className="space-y-4 w-full lg:w-1/2 mb-8 lg:mb-0">
+          <h1 className="text-2xl sm:text-4xl font-bold">
             {newsItem.title.split(/\s+[-|]\s+/)[0]}
           </h1>
-          <span className="text-xl mt-4 text-purple-500 font-bold">
+          <span className="text-lg sm:text-xl mt-4 text-purple-500 font-bold">
             {newsItem.category}
           </span>
-          <p className="text-gray-700 text-lg">{newsItem.description}</p>
-          <div className="prose prose-lg max-w-none">
+          <p className="text-gray-700 text-base sm:text-lg">
+            {newsItem.description}
+          </p>
+          <div className="prose prose-sm sm:prose-lg max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {newsItem.analysis}
             </ReactMarkdown>
           </div>
         </div>
-        <div className="w-1/2 space-y-4">
+
+        {/* Sağ Taraf - Sentiment ve Reklam */}
+        <div className="w-full lg:w-1/2 space-y-4">
+          {/* Share/Save Buttons */}
           <div className="flex justify-end gap-2 mb-4">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300">
+            <button className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-full border border-gray-300 text-sm">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 sm:w-5 sm:h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -91,9 +97,9 @@ function NewsDetail({ title }: NewsDetailProps) {
               </svg>
               Save
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300">
+            <button className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-full border border-gray-300 text-sm">
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4 sm:w-5 sm:h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -109,7 +115,8 @@ function NewsDetail({ title }: NewsDetailProps) {
             </button>
           </div>
 
-          <div className="p-6 bg-white rounded-lg shadow">
+          {/* Sentiment Box */}
+          <div className="p-4 sm:p-6 bg-white rounded-lg shadow">
             <div className="flex items-center gap-2 mb-2">
               <svg
                 className="w-6 h-6"
@@ -175,26 +182,26 @@ function NewsDetail({ title }: NewsDetailProps) {
             </div>
           </div>
 
-          {/* Advertisement Section */}
-          <div className="p-6 bg-white rounded-lg shadow">
+          {/* Advertisement Box */}
+          <div className="p-4 sm:p-6 bg-white rounded-lg shadow">
             <p className="text-xs text-gray-500 mb-4">ADVERTISEMENT</p>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <img
                 src="/placeholder-furniture.jpg"
                 alt="Advertisement"
-                className="w-24 h-24 object-cover rounded"
+                className="w-full sm:w-24 h-48 sm:h-24 object-cover rounded"
               />
               <div>
-                <h3 className="font-semibold mb-2">
+                <h3 className="font-semibold mb-2 text-sm sm:text-base">
                   Discover our brand new line of designer furniture
                 </h3>
-                <p className="text-sm text-gray-600 mb-2">
+                <p className="text-xs sm:text-sm text-gray-600 mb-2">
                   From mid-century modern to lounge, find the right fit for your
-                  home interior design style
+                  home
                 </p>
                 <a
                   href="#"
-                  className="text-sm text-gray-600 hover:text-gray-800 underline"
+                  className="text-xs sm:text-sm text-gray-600 hover:text-gray-800 underline"
                 >
                   Visit Site
                 </a>
@@ -205,9 +212,9 @@ function NewsDetail({ title }: NewsDetailProps) {
       </div>
 
       {/* Sources Section */}
-      <div className="w-full mt-16">
-        <h2 className="text-2xl font-bold mb-6">Sources</h2>
-        <div className="stacked-cards-container">
+      <div className="w-full mt-8 sm:mt-16">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Sources</h2>
+        <div className="stacked-cards-container space-y-4">
           {/* Main Article */}
           <a
             href={newsItem.url}
@@ -215,19 +222,19 @@ function NewsDetail({ title }: NewsDetailProps) {
             rel="noopener noreferrer"
             className="stacked-card active"
           >
-            <div className="flex">
-              <div className="w-[300px] aspect-[16/9] relative">
+            <div className="flex flex-col sm:flex-row">
+              <div className="w-full sm:w-[300px] aspect-[16/9] relative">
                 <img
                   src={newsItem.imageUrl || "/placeholder-image.jpg"}
                   alt={newsItem.title}
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div className="p-4 flex-1">
-                <h3 className="font-bold text-lg mb-2">
+              <div className="p-3 sm:p-4 flex-1">
+                <h3 className="font-bold text-base sm:text-lg mb-2">
                   {newsItem.title.split(/\s+[-|]\s+/)[0]}
                 </h3>
-                <div className="flex items-center text-gray-500 text-sm">
+                <div className="flex items-center text-gray-500 text-xs sm:text-sm">
                   <span className="flex items-center">
                     {getSourceIcon(newsItem.source) && (
                       <Image
@@ -260,7 +267,7 @@ function NewsDetail({ title }: NewsDetailProps) {
             </div>
           </a>
 
-          {/* Related Articles - Filter out articles with same title */}
+          {/* Related Articles */}
           {newsItem.relatedArticles
             ?.filter(
               (article) =>
@@ -279,19 +286,19 @@ function NewsDetail({ title }: NewsDetailProps) {
                 rel="noopener noreferrer"
                 className="stacked-card"
               >
-                <div className="flex">
-                  <div className="w-[300px] aspect-[16/9] relative">
+                <div className="flex flex-col sm:flex-row">
+                  <div className="w-full sm:w-[300px] aspect-[16/9] relative">
                     <img
                       src={article.imageUrl || "/placeholder-image.jpg"}
                       alt={article.title || article.source}
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <div className="p-4 flex-1">
-                    <h3 className="font-bold text-lg mb-2">
+                  <div className="p-3 sm:p-4 flex-1">
+                    <h3 className="font-bold text-base sm:text-lg mb-2">
                       {article.title || article.source}
                     </h3>
-                    <div className="flex items-center text-gray-500 text-sm">
+                    <div className="flex items-center text-gray-500 text-xs sm:text-sm">
                       <span className="flex items-center">
                         {getSourceIcon(article.source) && (
                           <Image

@@ -9,7 +9,7 @@ import Footer from "./components/Footer";
 
 export default function Home() {
   return (
-    <div className="w-[1400px] mx-auto min-h-screen bg-white p-8">
+    <div className="w-full max-w-[1400px] mx-auto min-h-screen bg-white p-4 md:p-8">
       <Navbar />
       <Categories />
       <Info />
