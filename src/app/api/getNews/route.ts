@@ -98,7 +98,7 @@ async function fetchAndProcessNews() {
     Return only the numbers of the top 5 articles in order of importance, comma-separated (e.g., "3,1,7,4,2").`;
 
     const rankingResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: rankingPrompt }],
       temperature: 0.3,
       max_tokens: 50,
@@ -253,7 +253,7 @@ async function generateComprehensiveAnalysis(
     Return ONLY the category name, nothing else.`;
 
     const categoryResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: categoryPrompt }],
       temperature: 0.3,
       max_tokens: 10,
@@ -315,7 +315,7 @@ async function generateComprehensiveAnalysis(
     `;
 
     const analysisResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: analysisPrompt }],
       max_tokens: 4000,
       temperature: 0.7,
@@ -324,7 +324,7 @@ async function generateComprehensiveAnalysis(
     // Duygu analizi yap
     const sentimentPrompt = `${analysisResponse.choices[0].message.content}`;
     const sentimentResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -403,7 +403,7 @@ async function scrapeArticleContent(url: string) {
 async function extractKeywordsFromTitle(title: string) {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -535,7 +535,7 @@ Guidelines:
 Return only the new title, nothing else.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
       max_tokens: 100,

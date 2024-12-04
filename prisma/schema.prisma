@@ -138,3 +138,22 @@ enum Role {
   USER
   ADMIN
 }
+
+model CategoryNews {
+  id              String    @id @default(cuid())
+  title           String
+  originalTitle   String?
+  description     String?   @db.Text
+  content         String?   @db.Text
+  url             String    @unique
+  imageUrl        String?
+  publishedAt     DateTime
+  source          String
+  category        String
+  analysis        String?   @db.Text
+  sentiment       Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([category])
+}

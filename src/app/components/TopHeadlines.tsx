@@ -1,11 +1,43 @@
 import React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useNews } from "@/hooks/useNews";
 import Image from "next/image";
 
 function TopHeadlines() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const category = searchParams.get("category") || "home";
   const { news, loading, error } = useNews();
+  const [categoryNews, setCategoryNews] = React.useState([]);
+  const [loadingCategory, setLoadingCategory] = React.useState(false);
+
+  // Kategori haberlerini çek
+  React.useEffect(() => {
+    const fetchCategoryNews = async () => {
+      if (category === "home") {
+        setCategoryNews([]);
+        return;
+      }
+
+      setLoadingCategory(true);
+      try {
+        const response = await fetch(
+          `/api/getCategoryNews?category=${category}`
+        );
+        const data = await response.json();
+        setCategoryNews(data.articles);
+      } catch (error) {
+        console.error("Error fetching category news:", error);
+      } finally {
+        setLoadingCategory(false);
+      }
+    };
+
+    fetchCategoryNews();
+  }, [category]);
+
+  // Gösterilecek haberleri belirle
+  const displayNews = category === "home" ? news : categoryNews;
 
   const getCategoryPriority = (category: string) => {
     const priorities = {
@@ -21,7 +53,7 @@ function TopHeadlines() {
     return priorities[category as keyof typeof priorities] ?? 999;
   };
 
-  const sortedNews = [...news].sort(
+  const sortedNews = [...displayNews].sort(
     (a, b) => getCategoryPriority(a.category) - getCategoryPriority(b.category)
   );
 
@@ -78,18 +110,26 @@ function TopHeadlines() {
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4 py-6 sm:py-12">
       <h1 className="text-3xl sm:text-5xl text-center mb-2">
-        Today is{" "}
-        {new Date().toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })}
+        {category === "home" ? (
+          <>
+            Today is{" "}
+            {new Date().toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </>
+        ) : (
+          <>{category.charAt(0).toUpperCase() + category.slice(1)} News</>
+        )}
       </h1>
       <h2 className="text-xl sm:text-2xl text-gray-600 text-center mb-6 sm:mb-12">
-        Breaking News Headlines
+        {category === "home"
+          ? "Breaking News Headlines"
+          : `Latest ${category} Updates`}
       </h2>
 
-      {loading ? (
+      {loading || loadingCategory ? (
         loadingAnimation()
       ) : (
         <div className="space-y-6 sm:space-y-8">
