@@ -26,13 +26,15 @@ function NewsDetail({ title }: NewsDetailProps) {
     news: categoryNews,
     loading: categoryLoading,
     error: categoryError,
-  } = category
-    ? useCategoryNews(category)
-    : { news: [], loading: false, error: null };
+  } = useCategoryNews(category || "");
 
   const news = category ? categoryNews : regularNews;
   const isLoading = category ? categoryLoading : regularLoading;
   const error = category ? categoryError : regularError;
+
+  if (!category && categoryNews.length > 0) {
+    // Kategori yoksa categoryNews'i görmezden gel
+  }
 
   console.log("Debug Info:", {
     title,
