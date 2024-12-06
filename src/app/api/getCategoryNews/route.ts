@@ -37,6 +37,25 @@ const preferredSources = [
   "propublica",
 ].join(",");
 
+// Yardımcı fonksiyonları en üste taşıyalım
+function isSimilarContent(title1: string, title2: string): boolean {
+  const normalize = (text: string) =>
+    text.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+
+  const words1 = normalize(title1).split(" ");
+  const words2 = normalize(title2).split(" ");
+
+  // Ortak kelime sayısını hesapla
+  const commonWords = words1.filter((word) => words2.includes(word));
+  const similarity =
+    commonWords.length / Math.max(words1.length, words2.length);
+
+  // %60'dan fazla benzerlik varsa true döndür
+  return similarity > 0.6;
+}
+
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -125,23 +144,6 @@ export async function GET(request: NextRequest) {
       .map((num) => parseInt(num.trim()) - 1)
       .filter((index) => index >= 0 && index < allArticles.length)
       .slice(0, 5);
-
-    // Benzer içerikleri kontrol etmek için bir yardımcı fonksiyon ekleyelim
-    function isSimilarContent(title1: string, title2: string): boolean {
-      const normalize = (text: string) =>
-        text.toLowerCase().replace(/[^a-z0-9\s]/g, "");
-
-      const words1 = normalize(title1).split(" ");
-      const words2 = normalize(title2).split(" ");
-
-      // Ortak kelime sayısını hesapla
-      const commonWords = words1.filter((word) => words2.includes(word));
-      const similarity =
-        commonWords.length / Math.max(words1.length, words2.length);
-
-      // %60'dan fazla benzerlik varsa true döndür
-      return similarity > 0.6;
-    }
 
     // selectedArticles oluştururken benzer içerikleri filtrele
     const selectedArticles =

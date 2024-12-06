@@ -16,26 +16,27 @@ function NewsDetail({ title }: NewsDetailProps) {
   const searchParams = useSearchParams();
   const category = searchParams.get("category");
 
-  console.log("Debug Info:", {
-    title,
-    category,
-    decodedTitle: decodeURIComponent(title),
-  });
-
   const {
     news: regularNews,
     loading: regularLoading,
     error: regularError,
   } = useNews();
+
   const {
     news: categoryNews,
     loading: categoryLoading,
     error: categoryError,
-  } = category
-    ? useCategoryNews(category)
-    : { news: [], loading: false, error: null };
+  } = useCategoryNews(category || "");
 
   const news = category ? categoryNews : regularNews;
+  const isLoading = regularLoading || categoryLoading;
+  const error = regularError || categoryError;
+
+  console.log("Debug Info:", {
+    title,
+    category,
+    decodedTitle: decodeURIComponent(title),
+  });
 
   console.log("Available News:", {
     regularNews,
@@ -86,7 +87,7 @@ function NewsDetail({ title }: NewsDetailProps) {
     return sourceIcons[source] || null;
   };
 
-  if (regularLoading || categoryLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
@@ -94,8 +95,7 @@ function NewsDetail({ title }: NewsDetailProps) {
     );
   }
 
-  if (regularError || categoryError)
-    return <div>Error: {regularError || categoryError}</div>;
+  if (error) return <div>Error: {error}</div>;
 
   if (!newsItem) return <div>News not found</div>;
 
