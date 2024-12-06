@@ -26,11 +26,13 @@ function NewsDetail({ title }: NewsDetailProps) {
     news: categoryNews,
     loading: categoryLoading,
     error: categoryError,
-  } = useCategoryNews(category || "");
+  } = category
+    ? useCategoryNews(category)
+    : { news: [], loading: false, error: null };
 
   const news = category ? categoryNews : regularNews;
-  const isLoading = regularLoading || categoryLoading;
-  const error = regularError || categoryError;
+  const isLoading = category ? categoryLoading : regularLoading;
+  const error = category ? categoryError : regularError;
 
   console.log("Debug Info:", {
     title,
