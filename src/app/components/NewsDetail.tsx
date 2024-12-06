@@ -2,15 +2,67 @@
 import React from "react";
 import Image from "next/image";
 import { useNews } from "@/hooks/useNews";
+import { useCategoryNews } from "@/hooks/useCategoryNews";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useSearchParams } from "next/navigation";
 
 interface NewsDetailProps {
   title: string;
+  category?: string;
 }
 
 function NewsDetail({ title }: NewsDetailProps) {
-  const { news, loading, error } = useNews();
+  const searchParams = useSearchParams();
+  const category = searchParams.get("category");
+
+  console.log("Debug Info:", {
+    title,
+    category,
+    decodedTitle: decodeURIComponent(title),
+  });
+
+  const {
+    news: regularNews,
+    loading: regularLoading,
+    error: regularError,
+  } = useNews();
+  const {
+    news: categoryNews,
+    loading: categoryLoading,
+    error: categoryError,
+  } = category
+    ? useCategoryNews(category)
+    : { news: [], loading: false, error: null };
+
+  const news = category ? categoryNews : regularNews;
+
+  console.log("Available News:", {
+    regularNews,
+    categoryNews,
+    usingCategory: !!category,
+    newsLength: news.length,
+  });
+
+  const newsItem = news.find((item) => {
+    const normalizedItemTitle = item.title.toLowerCase().trim();
+    const normalizedSearchTitle = decodeURIComponent(title)
+      .toLowerCase()
+      .trim();
+
+    const cleanItemTitle = normalizedItemTitle.split(/\s+[-|]\s+/)[0].trim();
+    const cleanSearchTitle = normalizedSearchTitle
+      .split(/\s+[-|]\s+/)[0]
+      .trim();
+
+    console.log("Comparing titles:", {
+      itemTitle: cleanItemTitle,
+      searchTitle: cleanSearchTitle,
+      matches: cleanItemTitle === cleanSearchTitle,
+    });
+
+    return cleanItemTitle === cleanSearchTitle;
+  });
 
   const getSourceIcon = (source: string) => {
     const sourceIcons: { [key: string]: string } = {
@@ -34,7 +86,7 @@ function NewsDetail({ title }: NewsDetailProps) {
     return sourceIcons[source] || null;
   };
 
-  if (loading) {
+  if (regularLoading || categoryLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
@@ -42,9 +94,8 @@ function NewsDetail({ title }: NewsDetailProps) {
     );
   }
 
-  if (error) return <div>Error: {error}</div>;
-
-  const newsItem = news.find((item) => item.title === title);
+  if (regularError || categoryError)
+    return <div>Error: {regularError || categoryError}</div>;
 
   if (!newsItem) return <div>News not found</div>;
 

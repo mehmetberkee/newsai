@@ -49,13 +49,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Önce veritabanından son 1 saat içinde eklenmiş haberleri kontrol et
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    // Son 24 saat içinde eklenmiş haberleri kontrol et
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const cachedNews = await prisma.categoryNews.findMany({
       where: {
         category: category,
         createdAt: {
-          gte: oneHourAgo,
+          gte: twentyFourHoursAgo,
         },
       },
       orderBy: {
@@ -64,16 +64,30 @@ export async function GET(request: NextRequest) {
       take: 5,
     });
 
+    // Eğer veritabanında yeterli sayıda güncel haber varsa, onları döndür
     if (cachedNews.length >= 5) {
+      console.log(
+        `Returning ${cachedNews.length} cached news for category: ${category}`
+      );
       return NextResponse.json({ articles: cachedNews });
     }
 
-    // Yeni haberleri API'den çek
+    // Yeterli sayıda güncel haber yoksa, yeni haberler getir
+    console.log(`Fetching new news for category: ${category}`);
     const url = `https://newsapi.org/v2/top-headlines?country=us&category=${category}&pageSize=10&apiKey=${process.env.NEWSAPI_KEY}`;
     const response = await axios.get(url);
 
     const allArticles = response.data.articles
-      .filter((article: any) => article.urlToImage)
+      .filter((article: any) => {
+        // URL'nin veritabanında olup olmadığını kontrol et
+        const isUrlExists = cachedNews.some(
+          (cached) => cached.url === article.url
+        );
+        // Görsel, başlık ve içerik kontrolü
+        return (
+          article.urlToImage && article.title && article.content && !isUrlExists
+        );
+      })
       .map((article: any) => ({
         ...article,
         category: category,
@@ -112,8 +126,34 @@ export async function GET(request: NextRequest) {
       .filter((index) => index >= 0 && index < allArticles.length)
       .slice(0, 5);
 
+    // Benzer içerikleri kontrol etmek için bir yardımcı fonksiyon ekleyelim
+    function isSimilarContent(title1: string, title2: string): boolean {
+      const normalize = (text: string) =>
+        text.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+
+      const words1 = normalize(title1).split(" ");
+      const words2 = normalize(title2).split(" ");
+
+      // Ortak kelime sayısını hesapla
+      const commonWords = words1.filter((word) => words2.includes(word));
+      const similarity =
+        commonWords.length / Math.max(words1.length, words2.length);
+
+      // %60'dan fazla benzerlik varsa true döndür
+      return similarity > 0.6;
+    }
+
+    // selectedArticles oluştururken benzer içerikleri filtrele
     const selectedArticles =
-      topIndices?.map((index) => allArticles[index]) || allArticles.slice(0, 5);
+      topIndices
+        ?.map((index) => allArticles[index])
+        .filter((article, index, self) => {
+          return !self
+            .slice(0, index)
+            .some((prevArticle) =>
+              isSimilarContent(article.title, prevArticle.title)
+            );
+        }) || allArticles.slice(0, 5);
 
     // Haberleri zenginleştir
     const enrichedArticles = await Promise.all(
@@ -122,7 +162,7 @@ export async function GET(request: NextRequest) {
           const keywords = await extractKeywordsFromTitle(article.title);
           const relatedUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
             keywords
-          )}&language=en&sources=${preferredSources}&excludeDomains=${
+          )}&language=en&excludeDomains=${
             article.source.name
           }&sortBy=relevancy&pageSize=5&apiKey=${process.env.NEWSAPI_KEY}`;
 

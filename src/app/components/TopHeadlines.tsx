@@ -50,7 +50,9 @@ function TopHeadlines() {
       Sports: 6,
       Lifestyle: 7,
     };
-    return priorities[category as keyof typeof priorities] ?? 999;
+    const formattedCategory =
+      category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+    return priorities[formattedCategory as keyof typeof priorities] ?? 999;
   };
 
   const sortedNews = [...displayNews].sort(
@@ -70,7 +72,15 @@ function TopHeadlines() {
     return <div className="text-red-500 text-center">Error: {error}</div>;
 
   const handleNewsClick = (newsItem: any) => {
-    router.push(`/news/${encodeURIComponent(newsItem.title)}`);
+    if (category === "home") {
+      // Ana sayfa haberleri için kategori parametresi olmadan yönlendir
+      router.push(`/news/${encodeURIComponent(newsItem.title)}`);
+    } else {
+      // Kategori haberleri için kategori parametresi ile yönlendir
+      router.push(
+        `/news/${encodeURIComponent(newsItem.title)}?category=${category}`
+      );
+    }
   };
 
   const getCategoryColor = (category: string) => {
@@ -85,7 +95,9 @@ function TopHeadlines() {
       Lifestyle: "bg-amber-500",
     } as const;
 
-    return colors[category as keyof typeof colors] || "bg-slate-500";
+    const formattedCategory =
+      category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+    return colors[formattedCategory as keyof typeof colors] || "bg-slate-500";
   };
 
   const getSourceIcon = (source: string) => {
@@ -163,7 +175,8 @@ function TopHeadlines() {
                     tracking-wide
                   `}
                   >
-                    {newsItem.category}
+                    {newsItem.category.charAt(0).toUpperCase() +
+                      newsItem.category.slice(1).toLowerCase()}
                   </span>
                 </div>
                 <p className="text-[14px] sm:text-[16px] tracking-[0%] leading-[140%] text-[#1E1E1E] mt-4 sm:mt-7 mb-3 sm:mb-4">
