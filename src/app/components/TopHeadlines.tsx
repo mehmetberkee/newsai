@@ -39,6 +39,13 @@ function TopHeadlines() {
   // Gösterilecek haberleri belirle
   const displayNews = category === "home" ? news : categoryNews;
 
+  const formatCategory = (cat: string) => {
+    const lowerCaseCat = cat.toLowerCase();
+    if (lowerCaseCat === "us") {
+      return "US";
+    }
+    return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+  };
   const getCategoryPriority = (category: string) => {
     const priorities = {
       US: 0,
@@ -50,8 +57,7 @@ function TopHeadlines() {
       Sports: 6,
       Lifestyle: 7,
     };
-    const formattedCategory =
-      category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+    const formattedCategory = formatCategory(category);
     return priorities[formattedCategory as keyof typeof priorities] ?? 999;
   };
 
@@ -132,13 +138,11 @@ function TopHeadlines() {
             })}
           </>
         ) : (
-          <>{category.charAt(0).toUpperCase() + category.slice(1)} News</>
+          <>{formatCategory(category)} News</>
         )}
       </h1>
       <h2 className="text-xl sm:text-2xl text-gray-600 text-center mb-6 sm:mb-12">
-        {category === "home"
-          ? "Breaking News Headlines"
-          : `Latest ${category} Updates`}
+        {category === "home" ? "These are the top headlines" : ``}
       </h2>
 
       {loading || loadingCategory ? (
@@ -175,8 +179,7 @@ function TopHeadlines() {
                     tracking-wide
                   `}
                   >
-                    {newsItem.category.charAt(0).toUpperCase() +
-                      newsItem.category.slice(1).toLowerCase()}
+                    {formatCategory(newsItem.category)}
                   </span>
                 </div>
                 <p className="text-[14px] sm:text-[16px] tracking-[0%] leading-[140%] text-[#1E1E1E] mt-4 sm:mt-7 mb-3 sm:mb-4">

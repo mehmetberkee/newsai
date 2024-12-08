@@ -1,3 +1,4 @@
+//page.tsx
 "use client";
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -17,8 +18,7 @@ function HomeContent() {
     <div className="w-full max-w-[1400px] mx-auto min-h-screen bg-white p-4 md:p-8">
       <Navbar />
       <Categories />
-      <Info />
-      <TopHeadlines />
+      {category === "home" && <Info />} <TopHeadlines />
       <Footer />
     </div>
   );

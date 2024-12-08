@@ -11,7 +11,7 @@ function Categories() {
 
   const categories = [
     { label: "Home", value: "home" },
-    { label: "General", value: "general" },
+
     { label: "Business", value: "business" },
     { label: "Entertainment", value: "entertainment" },
     { label: "Health", value: "health" },
